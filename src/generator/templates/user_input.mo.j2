@@ -27,7 +27,7 @@ record {{ user_input_record_name }}
     p            = {{ p | monum }});
 
   constant Modelica.Units.SI.Concentration c0[AWEspec.nSpec]          = {{ c0 | moarray }};
-  constant Real                            Pi[AWEspec.nSpec]           = {{ pi | moarray }};
-  constant Modelica.Units.SI.Concentration molFlow_vec[AWEspec.nSpec]  = {{ c0 | moarray }};
+  constant Modelica.Units.SI.Pressure       Pi[AWEspec.nSpec]           = {{ pi | moarray }};
+  constant Modelica.Units.SI.MolarFlowRate molFlow_vec[AWEspec.nSpec]  = {{ c0 | moarray }};
 
 end {{ user_input_record_name }};

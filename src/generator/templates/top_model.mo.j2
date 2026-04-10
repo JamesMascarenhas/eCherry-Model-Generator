@@ -27,7 +27,7 @@ model {{ name }}
     specRec   = {{ UI }}.AWEspec,
     GeoRec    = {{ UI }}.GeoRec,
     CondRec   = {{ UI }}.CondRec,
-    reac      = {{{ UI }}.{{ cathode_reaction }}},
+    reac      = {{ "{" + UI + "." + cathode_reaction + "}" }},
     CathodeEl = true,
     P         = 100000,
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
