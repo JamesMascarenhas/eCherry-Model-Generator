@@ -35,7 +35,8 @@ def transform(model: ReactorModel) -> dict:
         # --- identity ---
         "name":                   model.name,
         "electrolyte_mode":       mode,
-        "user_input_record_name": _USER_INPUT_RECORD[mode],
+        "user_input_record_name": model.name + "_UserInput",
+        "baseline_record_name":   _USER_INPUT_RECORD[mode],
 
         # --- Modelica package placement ---
         "within_user_input": f"{_LIB}.Data.UserInput",

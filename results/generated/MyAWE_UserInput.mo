@@ -1,6 +1,6 @@
 within eCherry_Library.Data.UserInput;
 
-record Example_AlkalineWaterElectrolysis
+record MyAWE_UserInput
   import DataRecords = eCherry_Library.Data.DataRecords;
 
   constant eCherry_Library.Data.DataRecords.Species.SpeciesRecord AWEspec(
@@ -29,7 +29,7 @@ record Example_AlkalineWaterElectrolysis
     p            = 1);
 
   constant Modelica.Units.SI.Concentration c0[AWEspec.nSpec]          = {0, 1.45e-12, 0.0001, 6000, 55000};
-  constant Real                            Pi[AWEspec.nSpec]           = {100000, 100000, 100000, 100000, 100000};
-  constant Modelica.Units.SI.Concentration molFlow_vec[AWEspec.nSpec]  = {0, 1.45e-12, 0.0001, 6000, 55000};
+  constant Modelica.Units.SI.Pressure       Pi[AWEspec.nSpec]           = {100000, 100000, 100000, 100000, 100000};
+  constant Modelica.Units.SI.MolarFlowRate molFlow_vec[AWEspec.nSpec]  = {0, 1.45e-12, 0.0001, 6000, 55000};
 
-end Example_AlkalineWaterElectrolysis;
+end MyAWE_UserInput;
