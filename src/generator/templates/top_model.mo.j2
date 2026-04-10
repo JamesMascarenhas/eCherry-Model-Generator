@@ -85,8 +85,7 @@ model {{ name }}
     specRec = {{ UI }}.AWEspec);
 
   {{ fqn_environment }} env_anode(
-    specRec = {{ UI }}.AWEspec,
-    CondRec = {{ UI }}.CondRec);
+    specRec = {{ UI }}.AWEspec);
 
   // Cathode-side material flows
   {{ fqn_inflow }} CathodeInflow(
@@ -97,8 +96,7 @@ model {{ name }}
     specRec = {{ UI }}.AWEspec);
 
   {{ fqn_environment }} env_cathode(
-    specRec = {{ UI }}.AWEspec,
-    CondRec = {{ UI }}.CondRec);
+    specRec = {{ UI }}.AWEspec);
 
 equation
   // Electrical
