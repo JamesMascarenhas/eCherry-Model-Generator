@@ -1,0 +1,137 @@
+within {{ within_model }};
+{% set UI = import_alias ~ ".Data.UserInput." ~ user_input_record_name %}
+model {{ name }}
+  import {{ import_alias }} = {{ import_target }};
+  extends Modelica.Icons.Example;
+
+  parameter Real Ufixed = {{ voltage | monum }};
+
+  // Electrical ground and voltage source
+  {{ fqn_ground }} Ground;
+
+  {{ fqn_voltage_source }} Source(
+    Ufixed = Ufixed,
+    GeoRec = {{ UI }}.GeoRec);
+
+  // Electrodes
+  {{ fqn_electrode }} Anode(
+    specRec   = {{ UI }}.AWEspec,
+    GeoRec    = {{ UI }}.GeoRec,
+    CondRec   = {{ UI }}.CondRec,
+    reac      = {{ "{" + UI + "." + anode_reaction + "}" }},
+    CathodeEl = false,
+    P         = 100000,
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  {{ fqn_electrode }} Cathode(
+    specRec   = {{ UI }}.AWEspec,
+    GeoRec    = {{ UI }}.GeoRec,
+    CondRec   = {{ UI }}.CondRec,
+    reac      = {{{ UI }}.{{ cathode_reaction }}},
+    CathodeEl = true,
+    P         = 100000,
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // Electrolyte compartments
+{% if use_koh_conductivity %}
+  {{ fqn_electrolyte }} Anolyte(
+    specRec   = {{ UI }}.AWEspec,
+    GeoRec    = {{ UI }}.GeoRec,
+    CondRec   = {{ UI }}.CondRec,
+    c0        = {{ UI }}.c0,
+    redeclare model ConductivityModel = {{ fqn_koh_conductivity }},
+    redeclare model TemperatureModel  = Properties.TemperatureModels.TemperatureConstant);
+
+  {{ fqn_electrolyte }} Catholyte(
+    specRec   = {{ UI }}.AWEspec,
+    GeoRec    = {{ UI }}.GeoRec,
+    CondRec   = {{ UI }}.CondRec,
+    c0        = {{ UI }}.c0,
+    redeclare model ConductivityModel = {{ fqn_koh_conductivity }},
+    redeclare model TemperatureModel  = Properties.TemperatureModels.TemperatureConstant);
+{% else %}
+  {{ fqn_electrolyte }} Anolyte(
+    specRec     = {{ UI }}.AWEspec,
+    GeoRec      = {{ UI }}.GeoRec,
+    CondRec     = {{ UI }}.CondRec,
+    c0          = {{ UI }}.c0,
+    kappa_const = {{ kappa_anode | monum }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  {{ fqn_electrolyte }} Catholyte(
+    specRec     = {{ UI }}.AWEspec,
+    GeoRec      = {{ UI }}.GeoRec,
+    CondRec     = {{ UI }}.CondRec,
+    c0          = {{ UI }}.c0,
+    kappa_const = {{ kappa_cathode | monum }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+{% endif %}
+
+  // Separator
+  {{ fqn_separator }} Diaphragm(
+    specRec = {{ UI }}.AWEspec,
+    GeoRec  = {{ UI }}.GeoRec,
+    CondRec = {{ UI }}.CondRec,
+    kappa   = {{ diaphragm_kappa | monum }},
+    X       = {{ diaphragm_X | monum }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // Anode-side material flows
+  {{ fqn_inflow }} AnodeInflow(
+    specRec     = {{ UI }}.AWEspec,
+    molFlow_vec = {{ UI }}.c0 * {{ inflow_scale | monum }});
+
+  {{ fqn_connecting_flow }} Flow_anode(
+    specRec = {{ UI }}.AWEspec);
+
+  {{ fqn_environment }} env_anode(
+    specRec = {{ UI }}.AWEspec,
+    CondRec = {{ UI }}.CondRec);
+
+  // Cathode-side material flows
+  {{ fqn_inflow }} CathodeInflow(
+    specRec     = {{ UI }}.AWEspec,
+    molFlow_vec = {{ UI }}.c0 * {{ inflow_scale | monum }});
+
+  {{ fqn_connecting_flow }} Flow_Cathode(
+    specRec = {{ UI }}.AWEspec);
+
+  {{ fqn_environment }} env_cathode(
+    specRec = {{ UI }}.AWEspec,
+    CondRec = {{ UI }}.CondRec);
+
+equation
+  // Electrical
+  connect(Ground.p,  Source.p);
+  connect(Anode.p,   Source.n);
+  connect(Source.p,  Cathode.n);
+
+  // Anode side — material flow
+  connect(AnodeInflow.convFlow,   Anolyte.inFlow);
+  connect(Anolyte.outFlow,        Flow_anode.convinFlow);
+  connect(Flow_anode.convoutFlow, env_anode.convFlow);
+  // Anode side — electrode coupling and separator
+  connect(Anolyte.leftFlow,  Anode.flowFromElectrolyte);
+  connect(Anode.n,           Anolyte.p);
+  connect(Anolyte.rightFlow, Diaphragm.anCon);
+  connect(Anolyte.n,         Diaphragm.p);
+
+  // Cathode side — material flow
+  connect(CathodeInflow.convFlow,    Catholyte.inFlow);
+  connect(Catholyte.outFlow,         Flow_Cathode.convinFlow);
+  connect(Flow_Cathode.convoutFlow,  env_cathode.convFlow);
+  // Cathode side — electrode coupling and separator
+  connect(Catholyte.rightFlow, Cathode.flowFromElectrolyte);
+{% if use_koh_conductivity %}
+  connect(Cathode.p,          Catholyte.n);
+  connect(Catholyte.leftFlow, Diaphragm.catCon);
+  connect(Catholyte.p,        Diaphragm.n);
+{% else %}
+  connect(Cathode.n,          Catholyte.p);
+  connect(Catholyte.leftFlow, Diaphragm.catCon);
+  connect(Catholyte.n,        Diaphragm.n);
+{% endif %}
+
+  annotation(experiment(StopTime = {{ sim_stop_time | monum }}));
+
+end {{ name }};

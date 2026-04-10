@@ -1,0 +1,33 @@
+within {{ within_user_input }};
+
+record {{ user_input_record_name }}
+  import DataRecords = eCherry_Library.Data.DataRecords;
+
+  constant eCherry_Library.Data.DataRecords.Species.SpeciesRecord AWEspec(
+    species = {
+{% for fqn in species_fqns %}
+      {{ fqn }}{{ "," if not loop.last }}
+{% endfor %}
+    });
+
+  constant DataRecords.ElecReaction.Reaction {{ anode_reaction }} = DataRecords.ElecReaction.List_Of_Reactions.{{ anode_reaction }};
+  constant DataRecords.ElecReaction.Reaction {{ cathode_reaction }} = DataRecords.ElecReaction.List_Of_Reactions.{{ cathode_reaction }};
+
+  constant DataRecords.Geometry GeoRec = DataRecords.Geometry(
+    X           = {{ geo_X | monum }},
+    X_membrane  = {{ geo_X_membrane | monum }},
+    Y           = {{ geo_Y | monum }},
+    Z           = {{ geo_Z | monum }},
+    cond0       = {{ geo_cond0 | monum }},
+    dX          = {{ geo_dX | monum }});
+
+  constant DataRecords.Conditions CondRec = DataRecords.Conditions(
+    T0           = {{ T0 | monum }},
+    Tenvironment = {{ Tenvironment | monum }},
+    p            = {{ p | monum }});
+
+  constant Modelica.Units.SI.Concentration c0[AWEspec.nSpec]          = {{ c0 | moarray }};
+  constant Real                            Pi[AWEspec.nSpec]           = {{ pi | moarray }};
+  constant Modelica.Units.SI.Concentration molFlow_vec[AWEspec.nSpec]  = {{ c0 | moarray }};
+
+end {{ user_input_record_name }};

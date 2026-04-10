@@ -107,6 +107,9 @@ def transform(model: ReactorModel) -> dict:
         "diaphragm_kappa": model.separator.kappa,
         "diaphragm_X":     model.geometry.X_membrane,
 
+        # --- flow scaling ---
+        "inflow_scale": inflow_scale,
+
         # --- simulation ---
         "sim_stop_time": model.sim_stop_time,
     }
