@@ -1,0 +1,41 @@
+reactor MyAWE {
+  electrolyte_mode: simple
+  voltage: -2.5
+
+  species: [O2, H2, Hp, OHm, H2O]
+
+  reactions {
+    anode:   OERdummy
+    cathode: HERdummy
+  }
+
+  geometry {
+    X:          0.01
+    X_membrane: 0.0005
+    Y:          1.0
+    Z:          1.0
+    cond0:      1.0
+    dX:         1e-6
+  }
+
+  conditions {
+    T0:           300
+    Tenvironment: 293.15
+    p:            1
+  }
+
+  concentrations: [0, 1.45e-12, 1e-4, 6000, 55e3]
+
+  electrolyte {
+    kappa_anode:   75
+    kappa_cathode: 85
+  }
+
+  diaphragm {
+    kappa: 38
+  }
+
+  simulation {
+    stop_time: 50
+  }
+}
