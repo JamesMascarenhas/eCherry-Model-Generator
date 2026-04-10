@@ -2,8 +2,6 @@
 
 A model-driven prototype that lets users describe an electrochemical reactor in a small external textual DSL and automatically generates eCherry-compatible Modelica simulation models.
 
-Built for CISC 844 — Model-Driven Software Development, Queen's University.
-
 ---
 
 ## Overview
