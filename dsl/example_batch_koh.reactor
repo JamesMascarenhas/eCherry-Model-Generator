@@ -1,4 +1,4 @@
-reactor MyAWE_Batch {
+reactor AWE_Batch_KOH {
   setup: batch_0D_alkaline
   electrolyte_mode: KOH
   voltage: -2.5

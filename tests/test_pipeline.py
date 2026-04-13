@@ -102,7 +102,7 @@ class TestContiSimple:
 
     def test_parser_populates_name(self):
         model = parse(CONTI_SIMPLE_DSL)
-        assert model.name == "MyAWE"
+        assert model.name == "AWE_Conti_Simple"
 
     def test_parser_populates_setup(self):
         model = parse(CONTI_SIMPLE_DSL)
@@ -135,7 +135,7 @@ class TestContiSimple:
     def test_transformer_sets_user_input_record_name(self):
         model = parse(CONTI_SIMPLE_DSL)
         ctx = transform(model)
-        assert ctx["user_input_record_name"] == "MyAWE_UserInput"
+        assert ctx["user_input_record_name"] == "AWE_Conti_Simple_UserInput"
 
     def test_transformer_resolves_species_fqns(self):
         model = parse(CONTI_SIMPLE_DSL)

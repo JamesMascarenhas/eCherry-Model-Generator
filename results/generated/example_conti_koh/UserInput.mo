@@ -1,6 +1,6 @@
 within eCherry_Library.Data.UserInput;
 
-record MyAWE_KOH_UserInput
+record AWE_Conti_KOH_UserInput
   import DataRecords = eCherry_Library.Data.DataRecords;
 
   constant eCherry_Library.Data.DataRecords.Species.SpeciesRecord AWEspec(
@@ -33,4 +33,4 @@ record MyAWE_KOH_UserInput
   constant Modelica.Units.SI.Pressure       Pi[AWEspec.nSpec]           = {100000, 100000, 100000, 100000, 100000, 100000};
   constant Modelica.Units.SI.MolarFlowRate molFlow_vec[AWEspec.nSpec]  = {0, 1.45e-12, 0.0001, 6000, 6000, 55000};
 
-end MyAWE_KOH_UserInput;
+end AWE_Conti_KOH_UserInput;

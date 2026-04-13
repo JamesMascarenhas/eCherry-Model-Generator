@@ -1,4 +1,4 @@
-reactor MyAWE {
+reactor AWE_Conti_Simple {
   setup: continuous_0D_alkaline
   electrolyte_mode: simple
   voltage: -2.5

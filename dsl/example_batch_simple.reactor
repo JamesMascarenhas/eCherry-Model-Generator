@@ -1,4 +1,4 @@
-reactor MyAWE_Batch {
+reactor AWE_Batch_Simple {
   setup: batch_0D_alkaline
   electrolyte_mode: simple
   voltage: -2.5
