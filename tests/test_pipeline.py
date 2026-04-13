@@ -10,6 +10,7 @@ from src.metamodel.metamodel import (
 )
 
 DSL_FILE = "dsl/example_awe.reactor"
+BATCH_DSL_FILE = "dsl/example_batch.reactor"
 
 
 # ---------------------------------------------------------------------------
@@ -196,3 +197,71 @@ def test_transformer_contains_expected_keys():
         "diaphragm_kappa", "sim_stop_time", "inflow_scale",
     }
     assert required <= ctx.keys()
+
+
+# ---------------------------------------------------------------------------
+# Batch 0D pipeline
+# ---------------------------------------------------------------------------
+
+def test_parser_populates_batch_setup():
+    model = parse(BATCH_DSL_FILE)
+    assert model.setup == "batch_0D_alkaline"
+
+
+def test_transformer_batch_mode_sets_flag():
+    model = parse(BATCH_DSL_FILE)
+    ctx = transform(model)
+    assert ctx["is_batch"] is True
+    assert ctx["within_model"] == "eCherry_Library.Examples.Batch.Batch0D"
+    assert ctx["fqn_electrolyte"].endswith("Electrolyte_Batch_0D_L")
+
+
+def test_generate_batch_model_omits_continuous_flow_blocks(tmp_path):
+    model = parse(BATCH_DSL_FILE)
+    ctx = transform(model)
+    generate(ctx, str(tmp_path))
+    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
+    assert "AnodeInflow" not in model_text
+    assert "CathodeInflow" not in model_text
+    assert "Material_Simple_InFlow_Fixed" not in model_text
+    assert "Flow_anode" not in model_text
+    assert "Flow_Cathode" not in model_text
+    assert "env_anode" not in model_text
+    assert "env_cathode" not in model_text
+    assert "Electrolyte_Batch_0D_L" in model_text
+
+
+def test_full_batch_pipeline_produces_output_files(tmp_path):
+    model = parse(BATCH_DSL_FILE)
+    ctx = transform(model)
+    generate(ctx, str(tmp_path))
+    assert (tmp_path / f"{ctx['name']}_UserInput.mo").exists()
+    assert (tmp_path / f"{ctx['name']}_Model.mo").exists()
+
+def test_generate_batch_model_uses_single_electrolyte(tmp_path):
+    model = parse(BATCH_DSL_FILE)
+    ctx = transform(model)
+    generate(ctx, str(tmp_path))
+    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
+    assert "Anolyte" not in model_text
+    assert "Catholyte" not in model_text
+    assert "Electrolyte(" in model_text
+
+def test_generate_batch_model_omits_separator(tmp_path):
+    model = parse(BATCH_DSL_FILE)
+    ctx = transform(model)
+    generate(ctx, str(tmp_path))
+    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
+    assert "Diaphragm" not in model_text
+
+def test_generate_batch_model_within_clause(tmp_path):
+    model = parse(BATCH_DSL_FILE)
+    ctx = transform(model)
+    generate(ctx, str(tmp_path))
+    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
+    assert "within eCherry_Library.Examples.Batch.Batch0D" in model_text
+
+def test_validator_accepts_batch_setup():
+    model = _minimal_model(setup="batch_0D_alkaline")
+    validate(model)  # should not raise
+

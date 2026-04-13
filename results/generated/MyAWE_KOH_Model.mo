@@ -31,7 +31,7 @@ model MyAWE_KOH
     P         = 100000,
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
 
-  // Electrolyte compartments
+  // Electrolyte compartment(s)
   Echery_library.ElectrochemicalReactor.Electrolytes.Liquid.Electrolyte_Conti_0D_L Anolyte(
     specRec   = Echery_library.Data.UserInput.MyAWE_KOH_UserInput.AWEspec,
     GeoRec    = Echery_library.Data.UserInput.MyAWE_KOH_UserInput.GeoRec,
