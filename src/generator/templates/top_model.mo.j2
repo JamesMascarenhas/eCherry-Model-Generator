@@ -29,6 +29,8 @@ model {{ name }}
     reac      = {{ "{" + UI + "." + anode_reaction + "}" }},
     CathodeEl = false,
     P         = 100000,
+    Pi(each displayUnit="bar"),
+    redeclare model ActivationOverpotentialModel = {{ fqn_activation_overpotential }},
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
 
   {{ fqn_electrode }} Cathode(
@@ -38,6 +40,8 @@ model {{ name }}
     reac      = {{ "{" + UI + "." + cathode_reaction + "}" }},
     CathodeEl = true,
     P         = 100000,
+    Pi(each displayUnit="bar"),
+    redeclare model ActivationOverpotentialModel = {{ fqn_activation_overpotential }},
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
 
   // Electrolyte compartment(s)
@@ -47,6 +51,9 @@ model {{ name }}
     GeoRec  = {{ UI }}.GeoRec,
     CondRec = {{ UI }}.CondRec,
     c0      = {{ UI }}.c0,
+    X       = {{ geo_X | monum }},
+    Y       = {{ geo_Y | monum }},
+    Z       = {{ geo_Z | monum }},
 {% if use_koh_conductivity %}
     redeclare model ConductivityModel = {{ fqn_koh_conductivity }},
 {% endif %}

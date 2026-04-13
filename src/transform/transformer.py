@@ -75,6 +75,12 @@ def transform(model: ReactorModel) -> dict:
             ".ConductivityElectrolyteCalcKOH"
         ),
 
+        # --- activation overpotential ---
+        "fqn_activation_overpotential": (
+            f"{_LIB}.ElectrochemicalReactor.Electrodes.Electrochemistry"
+            ".Activation_Overpotential.ActivationOverpotential"
+        ),
+
         # --- data record FQNs (full, used in UserInput record) ---
         "fqn_species_record":  f"{_LIB}.Data.DataRecords.Species.SpeciesRecord",
         "fqn_reaction_record": f"{_LIB}.Data.DataRecords.ElecReaction.Reaction",
