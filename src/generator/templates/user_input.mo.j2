@@ -17,6 +17,9 @@ record {{ user_input_record_name }}
   constant DataRecords.ElecReaction.Reaction HERdummy = DataRecords.ElecReaction.List_Of_Reactions.HERdummy;
   constant DataRecords.ElecReaction.Reaction OERdummy = DataRecords.ElecReaction.List_Of_Reactions.OERdummy;
 
+  // Discretization — declared before geometry records that reference it
+  constant Integer slices(min = 2) = {{ gas_channel_slices }};
+
   // Geometry: bulk / gas channel / anode side
   constant DataRecords.Geometry GeoRec(
     X          = {{ geo_X | monum }},
@@ -53,11 +56,7 @@ record {{ user_input_record_name }}
   // Concentrations: O2, H2, N2, NH3, OHm, Kp, H2O
   constant Modelica.Units.SI.Concentration c0_Electrolyte[AESspec.nSpec] = {{ c0 | moarray }};
   constant Modelica.Units.SI.Concentration c0_GasChannel[AESspec.nSpec]  = {{ c0_gas_channel }};
-
   constant Real mol_vec_frac0[AESspec.nSpec] = {{ gas_channel_mol_vec_frac0 }};
-
-  // Discretization
-  constant Integer slices(min = 2) = {{ gas_channel_slices }};
 
   // Residence time in flow channel [s]
   constant Modelica.Units.SI.Time t = {{ gas_channel_t | monum }};

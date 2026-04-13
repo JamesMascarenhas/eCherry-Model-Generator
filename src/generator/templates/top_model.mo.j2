@@ -54,6 +54,8 @@ model {{ name }}
     specRec = {{ UI }}.AESspec,
     GeoRec  = {{ UI }}.GeoRecMem,
     CondRec = {{ UI }}.CondRec,
+    X       = {{ geo_X_membrane | monum }},
+    kappa   = {{ diaphragm_kappa | monum }},
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
 
   // ── Gas channel compartment ──────────────────────────────────────────────────

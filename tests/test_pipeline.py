@@ -13,6 +13,7 @@ CONTI_SIMPLE_DSL = "dsl/example_conti_simple.reactor"
 CONTI_KOH_DSL    = "dsl/example_conti_koh.reactor"
 BATCH_SIMPLE_DSL = "dsl/example_batch_simple.reactor"
 BATCH_KOH_DSL    = "dsl/example_batch_koh.reactor"
+AMMONIA_DSL = "dsl/example_ammonia_0d.reactor"
 
 
 # ---------------------------------------------------------------------------
@@ -345,3 +346,163 @@ class TestBatchKOH:
         assert "AnodeInflow" not in text
         assert "Diaphragm" not in text
         assert "Electrolyte_Batch_0D_L" in text
+
+class TestAmmoniaConti:
+    """Parser, transformer, and generator tests for continuous_0D_ammonia."""
+
+    # ── parser ──────────────────────────────────────────────────────────────────
+
+    def test_parser_name(self):
+        m = parse(AMMONIA_DSL)
+        assert m.name == "AAE_0D"
+
+    def test_parser_setup(self):
+        m = parse(AMMONIA_DSL)
+        assert m.setup == "continuous_0D_ammonia"
+
+    def test_parser_species(self):
+        m = parse(AMMONIA_DSL)
+        assert m.electrolyte.species == ["O2", "H2", "N2", "NH3", "OHm", "Kp", "H2O"]
+
+    def test_parser_cathode_reaction(self):
+        m = parse(AMMONIA_DSL)
+        assert m.cathode.reaction == "HERdummy"
+        assert m.cathode.extra_reactions == ["NRRdummy"]
+
+    def test_parser_cathode_kind(self):
+        m = parse(AMMONIA_DSL)
+        assert m.cathode.kind == "gas_diffusion"
+
+    def test_parser_anode_reaction(self):
+        m = parse(AMMONIA_DSL)
+        assert m.anode.reaction == "OERdummy"
+
+    def test_parser_c0_electrolyte(self):
+        m = parse(AMMONIA_DSL)
+        assert len(m.electrolyte.c0) == 7
+        assert m.electrolyte.c0[2] == 0.0       # N2 dissolved = 0
+        assert m.electrolyte.c0[4] == 6000.0    # OHm
+
+    def test_parser_gas_channel_params(self):
+        m = parse(AMMONIA_DSL)
+        gcp = m.gas_channel_params
+        assert gcp is not None
+        assert gcp.slices == 10
+        assert gcp.t == 5.0
+        assert gcp.mol_vec_frac0[2] == 1.0      # N2 fraction = 1
+        assert gcp.c0_gas_channel[2] == 1.0     # N2 in gas channel = 1
+
+    def test_parser_x_electrode(self):
+        m = parse(AMMONIA_DSL)
+        assert m.geometry.X_electrode == 0.005
+
+    # ── transformer ─────────────────────────────────────────────────────────────
+
+    def test_transformer_is_ammonia_flag(self):
+        ctx = transform(parse(AMMONIA_DSL))
+        assert ctx["is_ammonia"] is True
+        assert ctx["is_batch"] is False
+
+    def test_transformer_within_model(self):
+        ctx = transform(parse(AMMONIA_DSL))
+        assert ctx["within_model"] == "eCherry_Library.Examples.AlkalineAmmoniaElectrolyzer"
+
+    def test_transformer_baseline_record(self):
+        ctx = transform(parse(AMMONIA_DSL))
+        assert ctx["baseline_record_name"] == "Example_AlkalineAmmoniaElectrolyzer"
+
+    def test_transformer_species_fqns(self):
+        ctx = transform(parse(AMMONIA_DSL))
+        fqns = ctx["species_fqns"]
+        assert any("N2" in f for f in fqns)
+        assert any("NH3" in f for f in fqns)
+
+    def test_transformer_fqn_gde(self):
+        ctx = transform(parse(AMMONIA_DSL))
+        assert "Electrode_GasDiffusion" in ctx["fqn_gde"]
+
+    def test_transformer_cathode_extra_reaction(self):
+        ctx = transform(parse(AMMONIA_DSL))
+        assert ctx["cathode_extra_reaction"] == "NRRdummy"
+
+    def test_transformer_koh_conductivity_false(self):
+        # ammonia never uses KOH conductivity redeclare
+        ctx = transform(parse(AMMONIA_DSL))
+        assert ctx["use_koh_conductivity"] is False
+
+    # ── generator ───────────────────────────────────────────────────────────────
+
+    def test_generator_model_contains_gde(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text()
+        assert "Electrode_GasDiffusion" in text
+
+    def test_generator_model_contains_gas_channel(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text()
+        assert "GasChannel" in text
+
+    def test_generator_model_within(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text()
+        assert "within eCherry_Library.Examples.AlkalineAmmoniaElectrolyzer" in text
+
+    def test_generator_model_no_pi_array(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text()
+        # ammonia electrodes do not emit Pi(each displayUnit="bar")
+        assert 'Pi(each displayUnit="bar")' not in text
+
+    def test_generator_userinput_aesspec(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text()
+        assert "AESspec" in text
+
+    def test_generator_userinput_three_georecs(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text()
+        assert "GeoRec(" in text
+        assert "GeoRecMem(" in text
+        assert "GeoRecElec(" in text
+
+    def test_generator_userinput_c0_electrolyte(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text()
+        assert "c0_Electrolyte" in text
+        assert "c0_GasChannel" in text
+
+    def test_generator_userinput_slices(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text()
+        assert "slices" in text
+        assert "Z = 1/slices" in text
+
+    def test_generator_model_diaphragm_has_kappa_and_X(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text()
+        assert "kappa" in text
+        # X parameter should appear in the Diaphragm block
+        assert "X       =" in text or "X=" in text
+
+    def test_generator_userinput_slices_before_georec(self, tmp_path):
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text()
+        # slices must be declared before GeoRec which uses 1/slices
+        assert text.index("slices") < text.index("GeoRec(")
+
+        ctx = transform(parse(AMMONIA_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text()
+        # ammonia UserInput has no molFlow_vec or Pi arrays
+        assert "molFlow_vec" not in text
+        assert "Pi[" not in text
