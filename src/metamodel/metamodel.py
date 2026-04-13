@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -9,6 +9,7 @@ class GeometryParams:
     Z: float = 1.0
     cond0: float = 1.0
     dX: float = 1e-6
+    X_electrode: float = 0.005   # ammonia only — GeoRecElec.X; ignored by AWE families
 
 
 @dataclass
@@ -25,6 +26,7 @@ class Electrode:
     reaction: str
     kappa: float
     kind: str = "planar"
+    extra_reactions: list[str] | None = None  # ammonia cathode only (e.g. ["NRRdummy"])
 
 
 @dataclass
@@ -46,6 +48,15 @@ class FlowChannel:
 
 
 @dataclass
+class GasChannelParams:
+    """Ammonia-specific gas channel parameters. None for all AWE families."""
+    mol_vec_frac0: list[float]
+    c0_gas_channel: list[float]
+    slices: int = 10
+    t: float = 5.0
+
+
+@dataclass
 class ReactorModel:
     name: str
     geometry: GeometryParams
@@ -57,3 +68,4 @@ class ReactorModel:
     flow_channel: FlowChannel
     sim_stop_time: float = 50.0
     setup: str = "continuous_0D_alkaline"
+    gas_channel_params: GasChannelParams | None = None  # ammonia only
