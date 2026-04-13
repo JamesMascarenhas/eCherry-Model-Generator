@@ -6,6 +6,127 @@ model {{ name }}
 
   parameter Real Ufixed = {{ voltage | monum }};
 
+{% if is_ammonia %}
+  // ── Electrical ──────────────────────────────────────────────────────────────
+  {{ fqn_ground }} Ground;
+  {{ fqn_voltage_source }} Source(
+    Ufixed = Ufixed,
+    GeoRec = {{ UI }}.GeoRec);
+
+  // ── Anode (planar) ──────────────────────────────────────────────────────────
+  {{ fqn_electrode }} Anode(
+    specRec   = {{ UI }}.AESspec,
+    GeoRec    = {{ UI }}.GeoRec,
+    CondRec   = {{ UI }}.CondRec,
+    reac      = {{ "{" + UI + ".OERdummy}" }},
+    CathodeEl = false,
+    redeclare model ActivationOverpotentialModel = {{ fqn_activation_overpotential }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Cathode (gas diffusion electrode) ───────────────────────────────────────
+  {{ fqn_gde }} GasDiffusionCathode(
+    specRec     = {{ UI }}.AESspec,
+    GeoRec      = {{ UI }}.GeoRecElec,
+    CondRec     = {{ UI }}.CondRec,
+    reac        = {{ "{" + UI + ".HERdummy, " + UI + ".NRRdummy}" }},
+    CathodeEl   = true,
+    splitFactor = 0,
+    redeclare model ActivationOverpotentialModel = {{ fqn_activation_overpotential }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Electrolyte compartments ─────────────────────────────────────────────────
+  {{ fqn_electrolyte }} Anolyte(
+    specRec = {{ UI }}.AESspec,
+    GeoRec  = {{ UI }}.GeoRecElec,
+    CondRec = {{ UI }}.CondRec,
+    c0      = {{ UI }}.c0_Electrolyte,
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  {{ fqn_electrolyte }} Catholyte(
+    specRec = {{ UI }}.AESspec,
+    GeoRec  = {{ UI }}.GeoRecElec,
+    CondRec = {{ UI }}.CondRec,
+    c0      = {{ UI }}.c0_Electrolyte,
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Separator ────────────────────────────────────────────────────────────────
+  {{ fqn_separator }} Diaphragm(
+    specRec = {{ UI }}.AESspec,
+    GeoRec  = {{ UI }}.GeoRecMem,
+    CondRec = {{ UI }}.CondRec,
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Gas channel compartment ──────────────────────────────────────────────────
+  {{ fqn_gas_channel_compartment }} GasChannel(
+    specRec       = {{ UI }}.AESspec,
+    GeoRec        = {{ UI }}.GeoRec,
+    CondRec       = {{ UI }}.CondRec,
+    mol_vec_frac0 = {{ UI }}.mol_vec_frac0);
+
+  // ── Liquid inflows ───────────────────────────────────────────────────────────
+  {{ fqn_liquid_inflow }} InflowAnolyte(
+    specRec = {{ UI }}.AESspec,
+    GeoRec  = {{ UI }}.GeoRecElec,
+    CondRec = {{ UI }}.CondRec,
+    c0      = {{ UI }}.c0_Electrolyte,
+    t       = {{ UI }}.t);
+
+  {{ fqn_liquid_inflow }} InflowCatholyte(
+    specRec = {{ UI }}.AESspec,
+    GeoRec  = {{ UI }}.GeoRecElec,
+    CondRec = {{ UI }}.CondRec,
+    c0      = {{ UI }}.c0_Electrolyte,
+    t       = {{ UI }}.t);
+
+  // ── Gas inflow ───────────────────────────────────────────────────────────────
+  {{ fqn_gas_inflow }} InflowGasChannel(
+    specRec = {{ UI }}.AESspec,
+    GeoRec  = {{ UI }}.GeoRec,
+    CondRec = {{ UI }}.CondRec,
+    c0      = {{ UI }}.c0_GasChannel,
+    t       = {{ UI }}.t);
+
+  // ── Outflows ─────────────────────────────────────────────────────────────────
+  {{ fqn_simple_outflow }} OutflowAnolyte(specRec   = {{ UI }}.AESspec);
+  {{ fqn_simple_outflow }} OutflowCatholyte(specRec = {{ UI }}.AESspec);
+  {{ fqn_simple_outflow }} OutflowGasChannel(specRec = {{ UI }}.AESspec);
+
+equation
+  // Electrical
+  connect(Ground.p,              Source.p);
+  connect(Anode.p,               Source.n);
+  connect(GasDiffusionCathode.n, Source.p);
+
+  // Liquid flow chain: Anode → Anolyte → Diaphragm → Catholyte → GDE
+  connect(Anode.n,     Anolyte.p);
+  connect(Anolyte.n,   Diaphragm.p);
+  connect(Diaphragm.n, Catholyte.p);
+  connect(Catholyte.n, GasDiffusionCathode.p);
+
+  // Separator material exchange
+  connect(Anolyte.rightFlow,  Diaphragm.anCon);
+  connect(Diaphragm.catCon,   Catholyte.leftFlow);
+
+  // GDE connections
+  connect(Catholyte.rightFlow,              GasDiffusionCathode.flowFromElectrolyte);
+  connect(GasDiffusionCathode.flowFromGas,  GasChannel.flowFromElectrode);
+
+  // Anode material flow
+  connect(Anode.flowFromElectrolyte, Anolyte.leftFlow);
+
+  // Inflows
+  connect(InflowAnolyte.convFlow,    Anolyte.inFlow);
+  connect(InflowCatholyte.convFlow,  Catholyte.inFlow);
+  connect(InflowGasChannel.convFlow, GasChannel.flowIn);
+
+  // Outflows
+  connect(Anolyte.outFlow,    OutflowAnolyte.convFlow);
+  connect(Catholyte.outFlow,  OutflowCatholyte.convFlow);
+  connect(GasChannel.flowOut, OutflowGasChannel.convFlow);
+
+  annotation(experiment(StopTime = {{ sim_stop_time | monum }}));
+
+{% else %}
   // Electrical ground and voltage source
   {{ fqn_ground }} Ground;
 
@@ -170,4 +291,5 @@ equation
 
   annotation(experiment(StopTime = {{ sim_stop_time | monum }}));
 
+{% endif %}
 end {{ name }};

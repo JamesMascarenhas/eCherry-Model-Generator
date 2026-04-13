@@ -1,5 +1,70 @@
 within {{ within_user_input }};
 
+{% if is_ammonia %}
+record {{ user_input_record_name }}
+  import DataRecords = eCherry_Library.Data.DataRecords;
+
+  // AESspec = Ammonia Electrochemical Synthesis Species
+  constant eCherry_Library.Data.DataRecords.Species.SpeciesRecord AESspec(
+    species = {
+{% for fqn in species_fqns %}
+      {{ fqn }}{{ "," if not loop.last }}
+{% endfor %}
+    });
+
+  // Reactions
+  constant DataRecords.ElecReaction.Reaction NRRdummy = DataRecords.ElecReaction.List_Of_Reactions.NRRdummy;
+  constant DataRecords.ElecReaction.Reaction HERdummy = DataRecords.ElecReaction.List_Of_Reactions.HERdummy;
+  constant DataRecords.ElecReaction.Reaction OERdummy = DataRecords.ElecReaction.List_Of_Reactions.OERdummy;
+
+  // Geometry: bulk / gas channel / anode side
+  constant DataRecords.Geometry GeoRec(
+    X          = {{ geo_X | monum }},
+    X_membrane = {{ geo_X_membrane | monum }},
+    Y          = {{ geo_Y | monum }},
+    Z          = 1/slices,
+    cond0      = {{ geo_cond0 | monum }},
+    dX         = {{ geo_dX | monum }});
+
+  // Geometry: membrane
+  constant DataRecords.Geometry GeoRecMem(
+    X          = {{ geo_X_membrane | monum }},
+    X_membrane = {{ geo_X_membrane | monum }},
+    Y          = {{ geo_Y | monum }},
+    Z          = 1/slices,
+    cond0      = {{ geo_cond0 | monum }},
+    dX         = {{ geo_dX | monum }});
+
+  // Geometry: electrode / electrolyte
+  constant DataRecords.Geometry GeoRecElec(
+    X          = {{ geo_X_elec | monum }},
+    X_membrane = {{ geo_X_membrane | monum }},
+    Y          = {{ geo_Y | monum }},
+    Z          = 1/slices,
+    cond0      = {{ geo_cond0 | monum }},
+    dX         = {{ geo_dX | monum }});
+
+  // Conditions
+  constant DataRecords.Conditions CondRec(
+    T0           = {{ T0 | monum }},
+    Tenvironment = {{ Tenvironment | monum }},
+    p            = {{ p | monum }});
+
+  // Concentrations: O2, H2, N2, NH3, OHm, Kp, H2O
+  constant Modelica.Units.SI.Concentration c0_Electrolyte[AESspec.nSpec] = {{ c0 | moarray }};
+  constant Modelica.Units.SI.Concentration c0_GasChannel[AESspec.nSpec]  = {{ c0_gas_channel }};
+
+  constant Real mol_vec_frac0[AESspec.nSpec] = {{ gas_channel_mol_vec_frac0 }};
+
+  // Discretization
+  constant Integer slices(min = 2) = {{ gas_channel_slices }};
+
+  // Residence time in flow channel [s]
+  constant Modelica.Units.SI.Time t = {{ gas_channel_t | monum }};
+
+end {{ user_input_record_name }};
+
+{% else %}
 record {{ user_input_record_name }}
   import DataRecords = eCherry_Library.Data.DataRecords;
 
@@ -31,3 +96,4 @@ record {{ user_input_record_name }}
   constant Modelica.Units.SI.MolarFlowRate molFlow_vec[AWEspec.nSpec]  = {{ c0 | moarray }};
 
 end {{ user_input_record_name }};
+{% endif %}
