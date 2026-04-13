@@ -47,6 +47,9 @@ model {{ name }}
     GeoRec  = {{ UI }}.GeoRec,
     CondRec = {{ UI }}.CondRec,
     c0      = {{ UI }}.c0,
+{% if use_koh_conductivity %}
+    redeclare model ConductivityModel = {{ fqn_koh_conductivity }},
+{% endif %}
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
 
 {% elif use_koh_conductivity %}

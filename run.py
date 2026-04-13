@@ -5,9 +5,6 @@ from src.parser.parser import parse
 from src.transform.transformer import transform
 from src.generator.generator import generate
 
-OUTPUT_DIR = "results/generated"
-
-
 def main():
     if len(sys.argv) != 2:
         print("Usage: python run.py <path/to/file.reactor>")
@@ -23,20 +20,20 @@ def main():
         print(f"Error: file not found: {input_path}")
         sys.exit(1)
 
+    output_dir = Path("results/generated") / input_path.stem
+
     try:
         model = parse(str(input_path))
         ctx   = transform(model)
-        generate(ctx, OUTPUT_DIR)
+        generate(ctx, str(output_dir))
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
 
-    name = ctx["name"]
-    out  = Path(OUTPUT_DIR)
     print("Generation successful")
     print(f"Input:  {input_path}")
-    print(f"Output: {out / f'{name}_UserInput.mo'}")
-    print(f"        {out / f'{name}_Model.mo'}")
+    print(f"Output: {output_dir / 'UserInput.mo'}")
+    print(f"        {output_dir / 'Model.mo'}")
 
 
 if __name__ == "__main__":

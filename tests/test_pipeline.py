@@ -9,8 +9,10 @@ from src.metamodel.metamodel import (
     Electrode, Separator, Electrolyte, FlowChannel,
 )
 
-DSL_FILE = "dsl/example_awe.reactor"
-BATCH_DSL_FILE = "dsl/example_batch.reactor"
+CONTI_SIMPLE_DSL = "dsl/example_conti_simple.reactor"
+CONTI_KOH_DSL    = "dsl/example_conti_koh.reactor"
+BATCH_SIMPLE_DSL = "dsl/example_batch_simple.reactor"
+BATCH_KOH_DSL    = "dsl/example_batch_koh.reactor"
 
 
 # ---------------------------------------------------------------------------
@@ -36,232 +38,310 @@ def _minimal_model(**overrides) -> ReactorModel:
     return ReactorModel(**defaults)
 
 
-# ---------------------------------------------------------------------------
-# Full pipeline happy path
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# VALIDATOR — rejection cases
+# ===========================================================================
 
-def test_full_pipeline_produces_output_files(tmp_path):
-    model = parse(DSL_FILE)
-    ctx = transform(model)
-    generate(ctx, str(tmp_path))
+class TestValidator:
 
-    name = ctx["name"]
-    assert (tmp_path / f"{name}_UserInput.mo").exists()
-    assert (tmp_path / f"{name}_Model.mo").exists()
+    def test_rejects_positive_voltage(self):
+        model = _minimal_model(conditions=OperatingConditions(voltage=1.0))
+        with pytest.raises(ValueError, match="voltage must be negative"):
+            validate(model)
 
-
-def test_full_pipeline_output_files_nonempty(tmp_path):
-    model = parse(DSL_FILE)
-    ctx = transform(model)
-    generate(ctx, str(tmp_path))
-
-    name = ctx["name"]
-    assert (tmp_path / f"{name}_UserInput.mo").stat().st_size > 0
-    assert (tmp_path / f"{name}_Model.mo").stat().st_size > 0
-
-
-# ---------------------------------------------------------------------------
-# Validator — rejection cases
-# ---------------------------------------------------------------------------
-
-def test_validator_rejects_positive_voltage():
-    model = _minimal_model(conditions=OperatingConditions(voltage=1.0))
-    with pytest.raises(ValueError, match="voltage must be negative"):
-        validate(model)
-
-
-def test_validator_rejects_mismatched_c0_length():
-    model = _minimal_model(
-        electrolyte=Electrolyte(
-            species=["O2", "H2", "Hp", "OHm", "H2O"],
-            c0=[0.0, 1e-12, 1e-4],          # only 3 values for 5 species
+    def test_rejects_mismatched_c0_length(self):
+        model = _minimal_model(
+            electrolyte=Electrolyte(
+                species=["O2", "H2", "Hp", "OHm", "H2O"],
+                c0=[0.0, 1e-12, 1e-4],
+            )
         )
-    )
-    with pytest.raises(ValueError, match="concentrations length"):
-        validate(model)
+        with pytest.raises(ValueError, match="concentrations length"):
+            validate(model)
 
-
-def test_validator_rejects_unknown_species():
-    model = _minimal_model(
-        electrolyte=Electrolyte(
-            species=["O2", "H2", "Xenon"],
-            c0=[0.0, 0.0, 0.0],
+    def test_rejects_unknown_species(self):
+        model = _minimal_model(
+            electrolyte=Electrolyte(
+                species=["O2", "H2", "Xenon"],
+                c0=[0.0, 0.0, 0.0],
+            )
         )
-    )
-    with pytest.raises(ValueError, match="unrecognized species"):
-        validate(model)
+        with pytest.raises(ValueError, match="unrecognized species"):
+            validate(model)
 
-
-def test_validator_rejects_invalid_electrolyte_mode():
-    model = _minimal_model(
-        electrolyte=Electrolyte(
-            species=["O2", "H2", "Hp", "OHm", "H2O"],
-            c0=[0.0, 1.45e-12, 1e-4, 6000.0, 55e3],
-            mode="PEM",
+    def test_rejects_invalid_electrolyte_mode(self):
+        model = _minimal_model(
+            electrolyte=Electrolyte(
+                species=["O2", "H2", "Hp", "OHm", "H2O"],
+                c0=[0.0, 1.45e-12, 1e-4, 6000.0, 55e3],
+                mode="PEM",
+            )
         )
-    )
-    with pytest.raises(ValueError, match="electrolyte_mode"):
-        validate(model)
+        with pytest.raises(ValueError, match="electrolyte_mode"):
+            validate(model)
+
+    def test_rejects_wrong_setup(self):
+        model = _minimal_model(setup="batch_mode")
+        with pytest.raises(ValueError, match="setup"):
+            validate(model)
+
+    def test_accepts_continuous_setup(self):
+        model = _minimal_model(setup="continuous_0D_alkaline")
+        validate(model)  # should not raise
+
+    def test_accepts_batch_setup(self):
+        model = _minimal_model(setup="batch_0D_alkaline")
+        validate(model)  # should not raise
 
 
-def test_validator_rejects_wrong_setup():
-    model = _minimal_model(setup="batch_mode")
-    with pytest.raises(ValueError, match="setup"):
-        validate(model)
+# ===========================================================================
+# CONTINUOUS 0D SIMPLE
+# ===========================================================================
+
+class TestContiSimple:
+
+    def test_parser_populates_name(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.name == "MyAWE"
+
+    def test_parser_populates_setup(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.setup == "continuous_0D_alkaline"
+
+    def test_parser_populates_voltage(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.conditions.voltage == pytest.approx(-2.5)
+
+    def test_parser_populates_species(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.electrolyte.species == ["O2", "H2", "Hp", "OHm", "H2O"]
+
+    def test_parser_populates_electrolyte_mode(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.electrolyte.mode == "simple"
+
+    def test_parser_populates_anode_reaction(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.anode.reaction == "OERdummy"
+
+    def test_parser_populates_cathode_reaction(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.cathode.reaction == "HERdummy"
+
+    def test_parser_populates_separator_kappa(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        assert model.separator.kappa == pytest.approx(38.0)
+
+    def test_transformer_sets_user_input_record_name(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        ctx = transform(model)
+        assert ctx["user_input_record_name"] == "MyAWE_UserInput"
+
+    def test_transformer_resolves_species_fqns(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        ctx = transform(model)
+        fqns = ctx["species_fqns"]
+        assert len(fqns) == 5
+        assert "GaseousSpecies.O2" in fqns[0]
+        assert "LiquidSpecies.H2O" in fqns[-1]
+
+    def test_transformer_not_koh(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        ctx = transform(model)
+        assert ctx["use_koh_conductivity"] is False
+        assert ctx["is_batch"] is False
+
+    def test_transformer_contains_expected_keys(self):
+        model = parse(CONTI_SIMPLE_DSL)
+        ctx = transform(model)
+        required = {
+            "name", "user_input_record_name", "electrolyte_mode",
+            "species_fqns", "use_koh_conductivity", "is_batch",
+            "anode_reaction_fqn", "cathode_reaction_fqn",
+            "voltage", "kappa_anode", "kappa_cathode",
+            "diaphragm_kappa", "sim_stop_time", "inflow_scale",
+        }
+        assert required <= ctx.keys()
+
+    def test_full_pipeline_produces_output_files(self, tmp_path):
+        model = parse(CONTI_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        assert (tmp_path / "UserInput.mo").exists()
+        assert (tmp_path / "Model.mo").exists()
+
+    def test_full_pipeline_output_files_nonempty(self, tmp_path):
+        model = parse(CONTI_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        assert (tmp_path / "UserInput.mo").stat().st_size > 0
+        assert (tmp_path / "Model.mo").stat().st_size > 0
+
+    def test_generated_model_contains_separator(self, tmp_path):
+        model = parse(CONTI_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "Diaphragm_Hydroxide" in text
+        assert "AnodeInflow" in text
+        assert "kappa_const" in text
 
 
-# ---------------------------------------------------------------------------
-# Parser — field population
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# CONTINUOUS 0D KOH
+# ===========================================================================
 
-def test_parser_populates_name():
-    model = parse(DSL_FILE)
-    assert model.name == "MyAWE"
+class TestContiKOH:
 
+    def test_parser_populates_setup(self):
+        model = parse(CONTI_KOH_DSL)
+        assert model.setup == "continuous_0D_alkaline"
 
-def test_parser_populates_voltage():
-    model = parse(DSL_FILE)
-    assert model.conditions.voltage == pytest.approx(-2.5)
+    def test_parser_populates_koh_mode(self):
+        model = parse(CONTI_KOH_DSL)
+        assert model.electrolyte.mode == "KOH"
 
+    def test_parser_populates_koh_species(self):
+        model = parse(CONTI_KOH_DSL)
+        assert "Kp" in model.electrolyte.species
+        assert len(model.electrolyte.species) == 6
 
-def test_parser_populates_species():
-    model = parse(DSL_FILE)
-    assert model.electrolyte.species == ["O2", "H2", "Hp", "OHm", "H2O"]
+    def test_transformer_sets_koh_flag(self):
+        model = parse(CONTI_KOH_DSL)
+        ctx = transform(model)
+        assert ctx["use_koh_conductivity"] is True
+        assert ctx["is_batch"] is False
 
+    def test_transformer_within_model(self):
+        model = parse(CONTI_KOH_DSL)
+        ctx = transform(model)
+        assert ctx["within_model"] == "eCherry_Library.Examples.Continuous"
 
-def test_parser_populates_electrolyte_mode():
-    model = parse(DSL_FILE)
-    assert model.electrolyte.mode == "simple"
+    def test_full_pipeline_produces_output_files(self, tmp_path):
+        model = parse(CONTI_KOH_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        assert (tmp_path / "UserInput.mo").exists()
+        assert (tmp_path / "Model.mo").exists()
 
-
-def test_parser_populates_anode_reaction():
-    model = parse(DSL_FILE)
-    assert model.anode.reaction == "OERdummy"
-
-
-def test_parser_populates_cathode_reaction():
-    model = parse(DSL_FILE)
-    assert model.cathode.reaction == "HERdummy"
-
-
-def test_parser_populates_separator_kappa():
-    model = parse(DSL_FILE)
-    assert model.separator.kappa == pytest.approx(38.0)
-
-
-# ---------------------------------------------------------------------------
-# Transformer — output keys and values
-# ---------------------------------------------------------------------------
-
-def test_transformer_sets_user_input_record_name():
-    model = parse(DSL_FILE)
-    ctx = transform(model)
-    assert ctx["user_input_record_name"] == "MyAWE_UserInput"
+    def test_generated_model_uses_koh_conductivity(self, tmp_path):
+        model = parse(CONTI_KOH_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "ConductivityElectrolyteCalcKOH" in text
+        assert "kappa_const" not in text
 
 
-def test_transformer_resolves_species_fqns():
-    model = parse(DSL_FILE)
-    ctx = transform(model)
-    fqns = ctx["species_fqns"]
-    assert len(fqns) == 5
-    assert "GaseousSpecies.O2" in fqns[0]
-    assert "LiquidSpecies.H2O" in fqns[-1]
+# ===========================================================================
+# BATCH 0D SIMPLE
+# ===========================================================================
+
+class TestBatchSimple:
+
+    def test_parser_populates_batch_setup(self):
+        model = parse(BATCH_SIMPLE_DSL)
+        assert model.setup == "batch_0D_alkaline"
+
+    def test_parser_populates_simple_mode(self):
+        model = parse(BATCH_SIMPLE_DSL)
+        assert model.electrolyte.mode == "simple"
+
+    def test_transformer_batch_flags(self):
+        model = parse(BATCH_SIMPLE_DSL)
+        ctx = transform(model)
+        assert ctx["is_batch"] is True
+        assert ctx["use_koh_conductivity"] is False
+        assert ctx["within_model"] == "eCherry_Library.Examples.Batch.Batch0D"
+        assert ctx["fqn_electrolyte"].endswith("Electrolyte_Batch_0D_L")
+
+    def test_full_pipeline_produces_output_files(self, tmp_path):
+        model = parse(BATCH_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        assert (tmp_path / "UserInput.mo").exists()
+        assert (tmp_path / "Model.mo").exists()
+
+    def test_generated_model_omits_flow_components(self, tmp_path):
+        model = parse(BATCH_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "AnodeInflow" not in text
+        assert "CathodeInflow" not in text
+        assert "Material_Simple_InFlow_Fixed" not in text
+        assert "Flow_anode" not in text
+        assert "Flow_Cathode" not in text
+        assert "env_anode" not in text
+        assert "env_cathode" not in text
+
+    def test_generated_model_uses_single_electrolyte(self, tmp_path):
+        model = parse(BATCH_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "Anolyte" not in text
+        assert "Catholyte" not in text
+        assert "Electrolyte(" in text
+        assert "Electrolyte_Batch_0D_L" in text
+
+    def test_generated_model_omits_separator(self, tmp_path):
+        model = parse(BATCH_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "Diaphragm" not in text
+
+    def test_generated_model_within_clause(self, tmp_path):
+        model = parse(BATCH_SIMPLE_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "within eCherry_Library.Examples.Batch.Batch0D" in text
 
 
-def test_transformer_simple_mode_not_koh():
-    model = parse(DSL_FILE)
-    ctx = transform(model)
-    assert ctx["use_koh_conductivity"] is False
+# ===========================================================================
+# BATCH 0D KOH
+# ===========================================================================
 
+class TestBatchKOH:
 
-def test_transformer_koh_mode_sets_flag():
-    model = _minimal_model(
-        electrolyte=Electrolyte(
-            species=["O2", "H2", "Hp", "OHm", "Kp", "H2O"],
-            c0=[0.0, 1.45e-12, 1e-4, 6000.0, 6000.0, 55e3],
-            mode="KOH",
-        )
-    )
-    ctx = transform(model)
-    assert ctx["use_koh_conductivity"] is True
+    def test_parser_populates_batch_koh_setup(self):
+        model = parse(BATCH_KOH_DSL)
+        assert model.setup == "batch_0D_alkaline"
+        assert model.electrolyte.mode == "KOH"
 
+    def test_parser_populates_koh_species(self):
+        model = parse(BATCH_KOH_DSL)
+        assert "Kp" in model.electrolyte.species
+        assert len(model.electrolyte.species) == 6
 
-def test_transformer_contains_expected_keys():
-    model = parse(DSL_FILE)
-    ctx = transform(model)
-    required = {
-        "name", "user_input_record_name", "electrolyte_mode",
-        "species_fqns", "use_koh_conductivity",
-        "anode_reaction_fqn", "cathode_reaction_fqn",
-        "voltage", "kappa_anode", "kappa_cathode",
-        "diaphragm_kappa", "sim_stop_time", "inflow_scale",
-    }
-    assert required <= ctx.keys()
+    def test_transformer_batch_koh_flags(self):
+        model = parse(BATCH_KOH_DSL)
+        ctx = transform(model)
+        assert ctx["is_batch"] is True
+        assert ctx["use_koh_conductivity"] is True
+        assert ctx["within_model"] == "eCherry_Library.Examples.Batch.Batch0D"
 
+    def test_full_pipeline_produces_output_files(self, tmp_path):
+        model = parse(BATCH_KOH_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        assert (tmp_path / "UserInput.mo").exists()
+        assert (tmp_path / "Model.mo").exists()
 
-# ---------------------------------------------------------------------------
-# Batch 0D pipeline
-# ---------------------------------------------------------------------------
+    def test_generated_model_uses_koh_conductivity(self, tmp_path):
+        model = parse(BATCH_KOH_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "ConductivityElectrolyteCalcKOH" in text
 
-def test_parser_populates_batch_setup():
-    model = parse(BATCH_DSL_FILE)
-    assert model.setup == "batch_0D_alkaline"
-
-
-def test_transformer_batch_mode_sets_flag():
-    model = parse(BATCH_DSL_FILE)
-    ctx = transform(model)
-    assert ctx["is_batch"] is True
-    assert ctx["within_model"] == "eCherry_Library.Examples.Batch.Batch0D"
-    assert ctx["fqn_electrolyte"].endswith("Electrolyte_Batch_0D_L")
-
-
-def test_generate_batch_model_omits_continuous_flow_blocks(tmp_path):
-    model = parse(BATCH_DSL_FILE)
-    ctx = transform(model)
-    generate(ctx, str(tmp_path))
-    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
-    assert "AnodeInflow" not in model_text
-    assert "CathodeInflow" not in model_text
-    assert "Material_Simple_InFlow_Fixed" not in model_text
-    assert "Flow_anode" not in model_text
-    assert "Flow_Cathode" not in model_text
-    assert "env_anode" not in model_text
-    assert "env_cathode" not in model_text
-    assert "Electrolyte_Batch_0D_L" in model_text
-
-
-def test_full_batch_pipeline_produces_output_files(tmp_path):
-    model = parse(BATCH_DSL_FILE)
-    ctx = transform(model)
-    generate(ctx, str(tmp_path))
-    assert (tmp_path / f"{ctx['name']}_UserInput.mo").exists()
-    assert (tmp_path / f"{ctx['name']}_Model.mo").exists()
-
-def test_generate_batch_model_uses_single_electrolyte(tmp_path):
-    model = parse(BATCH_DSL_FILE)
-    ctx = transform(model)
-    generate(ctx, str(tmp_path))
-    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
-    assert "Anolyte" not in model_text
-    assert "Catholyte" not in model_text
-    assert "Electrolyte(" in model_text
-
-def test_generate_batch_model_omits_separator(tmp_path):
-    model = parse(BATCH_DSL_FILE)
-    ctx = transform(model)
-    generate(ctx, str(tmp_path))
-    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
-    assert "Diaphragm" not in model_text
-
-def test_generate_batch_model_within_clause(tmp_path):
-    model = parse(BATCH_DSL_FILE)
-    ctx = transform(model)
-    generate(ctx, str(tmp_path))
-    model_text = (tmp_path / f"{ctx['name']}_Model.mo").read_text(encoding="utf-8")
-    assert "within eCherry_Library.Examples.Batch.Batch0D" in model_text
-
-def test_validator_accepts_batch_setup():
-    model = _minimal_model(setup="batch_0D_alkaline")
-    validate(model)  # should not raise
-
+    def test_generated_model_omits_flow_components(self, tmp_path):
+        model = parse(BATCH_KOH_DSL)
+        ctx = transform(model)
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "AnodeInflow" not in text
+        assert "Diaphragm" not in text
+        assert "Electrolyte_Batch_0D_L" in text

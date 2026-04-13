@@ -1,4 +1,5 @@
 reactor MyAWE_KOH {
+  setup: continuous_0D_alkaline
   electrolyte_mode: KOH
   voltage: -2.5
 

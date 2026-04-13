@@ -1,8 +1,9 @@
-reactor MyAWE {
-  electrolyte_mode: simple
+reactor MyAWE_Batch {
+  setup: batch_0D_alkaline
+  electrolyte_mode: KOH
   voltage: -2.5
 
-  species: [O2, H2, Hp, OHm, H2O]
+  species: [O2, H2, Hp, OHm, Kp, H2O]
 
   reactions {
     anode:   OERdummy
@@ -24,7 +25,7 @@ reactor MyAWE {
     p:            1
   }
 
-  concentrations: [0, 1.45e-12, 1e-4, 6000, 55e3]
+  concentrations: [0, 1.45e-12, 1e-4, 6000, 6000, 55e3]
 
   electrolyte {
     kappa_anode:   75
