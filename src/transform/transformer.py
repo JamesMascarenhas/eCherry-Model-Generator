@@ -30,6 +30,7 @@ def transform(model: ReactorModel) -> dict:
     mode         = model.electrolyte.mode
     c0           = model.electrolyte.c0
     inflow_scale = model.conditions.inflow_scale
+    is_batch     = model.setup == "batch_0D_alkaline"
 
     return {
         # --- identity ---
@@ -40,7 +41,11 @@ def transform(model: ReactorModel) -> dict:
 
         # --- Modelica package placement ---
         "within_user_input": f"{_LIB}.Data.UserInput",
-        "within_model":      f"{_LIB}.Examples.Continuous",
+        "within_model": (
+            f"{_LIB}.Examples.Batch.Batch0D"
+            if is_batch else
+            f"{_LIB}.Examples.Continuous"
+        ),
 
         # --- import alias (used in generated model body) ---
         "import_alias":  _ALIAS,
@@ -49,12 +54,19 @@ def transform(model: ReactorModel) -> dict:
         # --- component FQNs (via import alias) ---
         "fqn_voltage_source":   f"{_ALIAS}.ElectrochemicalReactor.ElectricalDomain.Source.Potential_Source.Voltage_Fixed",
         "fqn_electrode":        f"{_ALIAS}.ElectrochemicalReactor.Electrodes.Electrode_Planar",
-        "fqn_electrolyte":      f"{_ALIAS}.ElectrochemicalReactor.Electrolytes.Liquid.Electrolyte_Conti_0D_L",
+        "fqn_electrolyte": (
+            f"{_ALIAS}.ElectrochemicalReactor.Electrolytes.Liquid.Electrolyte_Batch_0D_L"
+            if is_batch else
+            f"{_ALIAS}.ElectrochemicalReactor.Electrolytes.Liquid.Electrolyte_Conti_0D_L"
+        ),
         "fqn_separator":        f"{_ALIAS}.ElectrochemicalReactor.Separators.Diaphragm_Hydroxide",
         "fqn_inflow":           f"{_ALIAS}.ElectrochemicalReactor.MaterialDomain.Flows.Material_Simple_InFlow_Fixed",
         "fqn_connecting_flow":  f"{_ALIAS}.ElectrochemicalReactor.MaterialDomain.Flows.Material_Simple_ConnectingFlow",
         "fqn_environment":      f"{_ALIAS}.ElectrochemicalReactor.MaterialDomain.Flows.Environment",
         "fqn_ground":           "Modelica.Electrical.Analog.Basic.Ground",
+
+        # --- batch flag ---
+        "is_batch": is_batch,
 
         # --- KOH-only conductivity redeclare ---
         "use_koh_conductivity": mode == "KOH",
@@ -64,10 +76,10 @@ def transform(model: ReactorModel) -> dict:
         ),
 
         # --- data record FQNs (full, used in UserInput record) ---
-        "fqn_species_record": f"{_LIB}.Data.DataRecords.Species.SpeciesRecord",
+        "fqn_species_record":  f"{_LIB}.Data.DataRecords.Species.SpeciesRecord",
         "fqn_reaction_record": f"{_LIB}.Data.DataRecords.ElecReaction.Reaction",
-        "fqn_geometry":       f"{_LIB}.Data.DataRecords.Geometry",
-        "fqn_conditions":     f"{_LIB}.Data.DataRecords.Conditions",
+        "fqn_geometry":        f"{_LIB}.Data.DataRecords.Geometry",
+        "fqn_conditions":      f"{_LIB}.Data.DataRecords.Conditions",
 
         # --- species ---
         "species":      model.electrolyte.species,

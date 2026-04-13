@@ -34,5 +34,5 @@ def generate(ctx: dict, output_dir: str) -> None:
     ui_tmpl    = env.get_template("user_input.mo.j2")
     model_tmpl = env.get_template("top_model.mo.j2")
 
-    (out / f"{name}_UserInput.mo").write_text(ui_tmpl.render(ctx))
-    (out / f"{name}_Model.mo").write_text(model_tmpl.render(ctx))
+    (out / f"{name}_UserInput.mo").write_text(ui_tmpl.render(ctx), encoding="utf-8")
+    (out / f"{name}_Model.mo").write_text(model_tmpl.render(ctx), encoding="utf-8")

@@ -138,6 +138,7 @@ def _build_model(data: dict) -> ReactorModel:
         electrolyte=electrolyte,
         flow_channel=FlowChannel(),
         sim_stop_time=float(sim.get("stop_time", 50.0)),
+        setup=str(data.get("setup", "continuous_0D_alkaline")),
     )
 
 

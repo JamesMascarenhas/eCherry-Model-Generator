@@ -2,6 +2,7 @@ from src.metamodel.metamodel import ReactorModel
 
 _KNOWN_SPECIES = {"O2", "H2", "Hp", "OHm", "Kp", "H2O"}
 _KNOWN_REACTIONS = {"OERdummy", "HERdummy"}
+_VALID_SETUPS = {"continuous_0D_alkaline", "batch_0D_alkaline"}
 
 
 def validate(model: ReactorModel) -> None:
@@ -16,9 +17,9 @@ def validate(model: ReactorModel) -> None:
             f"voltage must be negative (got {model.conditions.voltage})"
         )
 
-    if model.setup != "continuous_0D_alkaline":
+    if model.setup not in _VALID_SETUPS:
         raise ValueError(
-            f"only setup 'continuous_0D_alkaline' is supported in v1 (got '{model.setup}')"
+            f"setup must be one of {sorted(_VALID_SETUPS)} (got '{model.setup}')"
         )
 
     if model.electrolyte.mode not in {"simple", "KOH"}:

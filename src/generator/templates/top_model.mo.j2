@@ -9,9 +9,17 @@ model {{ name }}
   // Electrical ground and voltage source
   {{ fqn_ground }} Ground;
 
+{% if is_batch %}
+  {{ fqn_voltage_source }} Source(
+    Ufixed = Ufixed,
+    GeoRec = {{ UI }}.GeoRec,
+    Y = 1,
+    Z = 1);
+{% else %}
   {{ fqn_voltage_source }} Source(
     Ufixed = Ufixed,
     GeoRec = {{ UI }}.GeoRec);
+{% endif %}
 
   // Electrodes
   {{ fqn_electrode }} Anode(
@@ -32,8 +40,16 @@ model {{ name }}
     P         = 100000,
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
 
-  // Electrolyte compartments
-{% if use_koh_conductivity %}
+  // Electrolyte compartment(s)
+{% if is_batch %}
+  {{ fqn_electrolyte }} Electrolyte(
+    specRec = {{ UI }}.AWEspec,
+    GeoRec  = {{ UI }}.GeoRec,
+    CondRec = {{ UI }}.CondRec,
+    c0      = {{ UI }}.c0,
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+{% elif use_koh_conductivity %}
   {{ fqn_electrolyte }} Anolyte(
     specRec   = {{ UI }}.AWEspec,
     GeoRec    = {{ UI }}.GeoRec,
@@ -49,6 +65,7 @@ model {{ name }}
     c0        = {{ UI }}.c0,
     redeclare model ConductivityModel = {{ fqn_koh_conductivity }},
     redeclare model TemperatureModel  = Properties.TemperatureModels.TemperatureConstant);
+
 {% else %}
   {{ fqn_electrolyte }} Anolyte(
     specRec     = {{ UI }}.AWEspec,
@@ -65,8 +82,9 @@ model {{ name }}
     c0          = {{ UI }}.c0,
     kappa_const = {{ kappa_cathode | monum }},
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
-{% endif %}
 
+{% endif %}
+{% if not is_batch %}
   // Separator
   {{ fqn_separator }} Diaphragm(
     specRec = {{ UI }}.AWEspec,
@@ -98,12 +116,21 @@ model {{ name }}
   {{ fqn_environment }} env_cathode(
     specRec = {{ UI }}.AWEspec);
 
+{% endif %}
 equation
   // Electrical
   connect(Ground.p,  Source.p);
   connect(Anode.p,   Source.n);
   connect(Source.p,  Cathode.n);
 
+{% if is_batch %}
+  // Single shared electrolyte — electrode coupling
+  connect(Anode.n,                    Electrolyte.p);
+  connect(Electrolyte.n,              Cathode.p);
+  connect(Cathode.flowFromElectrolyte, Electrolyte.rightFlow);
+  connect(Electrolyte.leftFlow,        Anode.flowFromElectrolyte);
+
+{% else %}
   // Anode side — material flow
   connect(AnodeInflow.convFlow,   Anolyte.inFlow);
   connect(Anolyte.outFlow,        Flow_anode.convinFlow);
@@ -128,6 +155,7 @@ equation
   connect(Cathode.n,          Catholyte.p);
   connect(Catholyte.leftFlow, Diaphragm.catCon);
   connect(Catholyte.n,        Diaphragm.n);
+{% endif %}
 {% endif %}
 
   annotation(experiment(StopTime = {{ sim_stop_time | monum }}));
