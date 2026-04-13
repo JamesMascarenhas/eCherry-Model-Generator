@@ -1,4 +1,4 @@
-reactor AAE_0D {
+reactor AAE_Conti_Ammonia {
   setup:   continuous_0D_ammonia
   voltage: -2.0
 

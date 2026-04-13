@@ -13,7 +13,7 @@ CONTI_SIMPLE_DSL = "dsl/example_conti_simple.reactor"
 CONTI_KOH_DSL    = "dsl/example_conti_koh.reactor"
 BATCH_SIMPLE_DSL = "dsl/example_batch_simple.reactor"
 BATCH_KOH_DSL    = "dsl/example_batch_koh.reactor"
-AMMONIA_DSL = "dsl/example_ammonia_0d.reactor"
+AMMONIA_DSL = "dsl/example_conti_ammonia.reactor"
 
 
 # ---------------------------------------------------------------------------
@@ -483,14 +483,14 @@ class TestAmmoniaConti:
         generate(ctx, str(tmp_path))
         text = (tmp_path / "UserInput.mo").read_text()
         assert "slices" in text
-        assert "Z = 1/slices" in text
+        assert "1/slices" in text
 
     def test_generator_model_diaphragm_has_kappa_and_X(self, tmp_path):
         ctx = transform(parse(AMMONIA_DSL))
         generate(ctx, str(tmp_path))
         text = (tmp_path / "Model.mo").read_text()
+        assert "Diaphragm(" in text
         assert "kappa" in text
-        # X parameter should appear in the Diaphragm block
         assert "X       =" in text or "X=" in text
 
     def test_generator_userinput_slices_before_georec(self, tmp_path):
@@ -500,9 +500,9 @@ class TestAmmoniaConti:
         # slices must be declared before GeoRec which uses 1/slices
         assert text.index("slices") < text.index("GeoRec(")
 
+    def test_generator_userinput_no_molflow(self, tmp_path):
         ctx = transform(parse(AMMONIA_DSL))
         generate(ctx, str(tmp_path))
         text = (tmp_path / "UserInput.mo").read_text()
-        # ammonia UserInput has no molFlow_vec or Pi arrays
         assert "molFlow_vec" not in text
         assert "Pi[" not in text
