@@ -6,13 +6,16 @@ from src.metamodel.metamodel import (
     Separator,
     Electrolyte,
     FlowChannel,
+    GasChannelParams,
 )
 
 _REACTION_MAP = {
-    "OER": "OERdummy",
+    "OER":      "OERdummy",
     "OERdummy": "OERdummy",
-    "HER": "HERdummy",
+    "HER":      "HERdummy",
     "HERdummy": "HERdummy",
+    "NRR":      "NRRdummy",   # ammonia
+    "NRRdummy": "NRRdummy",   # ammonia
 }
 
 
@@ -81,14 +84,19 @@ def _parse_to_dict(filepath: str) -> dict:
     return data
 
 
+def _resolve_reaction(raw) -> str:
+    """Map a single reaction name (str or float-parsed) to its canonical form."""
+    return _REACTION_MAP.get(str(raw).strip(), str(raw).strip())
+
+
 def _build_model(data: dict) -> ReactorModel:
     """Construct a ReactorModel from the intermediate dict."""
-    geo = data.get("geometry", {})
+    geo  = data.get("geometry", {})
     cond = data.get("conditions", {})
     elec = data.get("electrolyte", {})
     diap = data.get("diaphragm", {})
     reac = data.get("reactions", {})
-    sim = data.get("simulation", {})
+    sim  = data.get("simulation", {})
 
     geometry = GeometryParams(
         X=float(geo.get("X", 0.01)),
@@ -97,6 +105,7 @@ def _build_model(data: dict) -> ReactorModel:
         Z=float(geo.get("Z", 1.0)),
         cond0=float(geo.get("cond0", 1.0)),
         dX=float(geo.get("dX", 1e-6)),
+        X_electrode=float(geo.get("X_electrode", 0.005)),
     )
 
     conditions = OperatingConditions(
@@ -106,8 +115,19 @@ def _build_model(data: dict) -> ReactorModel:
         voltage=float(data.get("voltage", -2.5)),
     )
 
-    anode_rxn = _REACTION_MAP.get(str(reac.get("anode", "OERdummy")), "OERdummy")
-    cathode_rxn = _REACTION_MAP.get(str(reac.get("cathode", "HERdummy")), "HERdummy")
+    anode_rxn = _resolve_reaction(reac.get("anode", "OERdummy"))
+
+    # Cathode may be a scalar string or a list (ammonia: [HERdummy, NRRdummy])
+    cathode_raw = reac.get("cathode", "HERdummy")
+    if isinstance(cathode_raw, list):
+        resolved = [_resolve_reaction(r) for r in cathode_raw]
+        cathode_rxn   = resolved[0]
+        cathode_extra = resolved[1:] if len(resolved) > 1 else None
+    else:
+        cathode_rxn   = _resolve_reaction(cathode_raw)
+        cathode_extra = None
+
+    cathode_kind = str(reac.get("cathode_type", "planar"))
 
     anode = Electrode(
         reaction=anode_rxn,
@@ -116,17 +136,40 @@ def _build_model(data: dict) -> ReactorModel:
     cathode = Electrode(
         reaction=cathode_rxn,
         kappa=float(elec.get("kappa_cathode", 85.0)),
+        kind=cathode_kind,
+        extra_reactions=cathode_extra,
     )
 
     separator = Separator(kappa=float(diap.get("kappa", 38.0)))
 
+    # Concentrations: flat list (AWE) or block dict (ammonia)
+    raw_conc = data.get("concentrations", [])
+    if isinstance(raw_conc, dict):
+        raw_c0      = raw_conc.get("electrolyte", [])
+        raw_c0_gas  = raw_conc.get("gas_channel", [])
+    else:
+        raw_c0      = raw_conc
+        raw_c0_gas  = None
+
     raw_species = data.get("species", [])
-    raw_c0 = data.get("concentrations", [])
     electrolyte = Electrolyte(
         species=[str(s) for s in raw_species],
         c0=[float(x) for x in raw_c0],
         mode=str(data.get("electrolyte_mode", "simple")),
     )
+
+    # Gas channel block (ammonia only)
+    gc_block = data.get("gas_channel", {})
+    if gc_block:
+        raw_mvf = gc_block.get("mol_vec_frac0", [])
+        gas_channel_params = GasChannelParams(
+            mol_vec_frac0=[float(x) for x in raw_mvf],
+            c0_gas_channel=[float(x) for x in raw_c0_gas] if raw_c0_gas else [],
+            slices=int(gc_block.get("slices", 10)),
+            t=float(gc_block.get("t", 5.0)),
+        )
+    else:
+        gas_channel_params = None
 
     return ReactorModel(
         name=data["name"],
@@ -139,6 +182,7 @@ def _build_model(data: dict) -> ReactorModel:
         flow_channel=FlowChannel(),
         sim_stop_time=float(sim.get("stop_time", 50.0)),
         setup=str(data.get("setup", "continuous_0D_alkaline")),
+        gas_channel_params=gas_channel_params,
     )
 
 
