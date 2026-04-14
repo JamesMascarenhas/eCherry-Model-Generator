@@ -2,7 +2,7 @@ from src.metamodel.metamodel import ReactorModel
 
 _KNOWN_SPECIES   = {"O2", "H2", "Hp", "OHm", "Kp", "H2O", "N2", "NH3"}
 _KNOWN_REACTIONS = {"OERdummy", "HERdummy", "NRRdummy"}
-_VALID_SETUPS    = {"continuous_0D_alkaline", "batch_0D_alkaline", "continuous_0D_ammonia"}
+_VALID_SETUPS    = {"continuous_0D_alkaline", "batch_0D_alkaline", "continuous_0D_ammonia", "continuous_1D_alkaline"}
 
 
 def validate(model: ReactorModel) -> None:
@@ -74,4 +74,15 @@ def validate(model: ReactorModel) -> None:
         if model.cathode.kind != "gas_diffusion":
             raise ValueError(
                 "setup 'continuous_0D_ammonia' requires cathode_type: gas_diffusion in the reactions block"
+            )
+    
+    # 9. Contiunuous 1D alkaline-specific checks
+    if model.setup == "continuous_1D_alkaline":
+        if model.diffusion_layer is None:
+            raise ValueError(
+                "setup 'continuous_1D_alkaline' requires a diffusion_layer { ... } block in the DSL"
+            )
+        if model.diffusion_layer.n_slices < 2:
+            raise ValueError(
+                "diffusion_layer n_slices must be at least 2"
             )
