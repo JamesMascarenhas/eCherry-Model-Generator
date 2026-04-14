@@ -7,11 +7,6 @@ import sys
 # HELPER FUNCTIONS
 # ─────────────────────────────────────────
 
-def ask(prompt, default):
-    raw = input(f"  {prompt} [{default}]: ").strip()
-    return raw if raw else str(default)
-
-
 def ask_float(prompt, default):
     while True:
         raw = input(f"  {prompt} [{default}]: ").strip()
@@ -79,6 +74,14 @@ def fmt_array(arr):
     return "[" + ", ".join(fmt(x) for x in arr) + "]"
 
 
+def ask_array_fixed(prompt, default_list, expected_length):
+    while True:
+        result = ask_array(prompt, default_list)
+        if len(result) == expected_length:
+            return result
+        print(f"    Expected {expected_length} values, got {len(result)}. Please try again.")
+
+
 # ─────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────
@@ -95,6 +98,12 @@ def main():
         if filename and all(c.isalnum() or c == "_" for c in filename):
             break
         print("    Only alphanumeric characters and underscores allowed, cannot be empty.")
+
+    if os.path.exists(f"dsl/{filename}.reactor"):
+        confirm = input(f"\n  dsl/{filename}.reactor already exists. Overwrite? [y/N]: ").strip().lower()
+        if confirm != "y":
+            print("  Cancelled.")
+            return
 
     # ── Step 3: Reactor name ──────────────────────────────────────
     while True:
@@ -135,7 +144,11 @@ def main():
         "continuous_0D_ammonia":  -2.0,
         "continuous_1D_alkaline": -2.3,
     }
-    voltage = ask_float("Voltage (must be negative)", voltage_defaults[setup])
+    while True:
+        voltage = ask_float("Voltage (must be negative)", voltage_defaults[setup])
+        if voltage < 0:
+            break
+        print("    Voltage must be negative.")
 
     # --- Geometry ---
     print("\n--- Geometry ---")
@@ -197,20 +210,20 @@ def main():
     if is_ammonia:
         species = ["O2", "H2", "N2", "NH3", "OHm", "Kp", "H2O"]
         print(f"  Species (fixed): {species}")
-        c0_electrolyte = ask_array(
-            "Electrolyte concentrations", [0, 1.45e-12, 0, 0, 6000, 6000, 55e3]
+        c0_electrolyte = ask_array_fixed(
+            "Electrolyte concentrations", [0, 1.45e-12, 0, 0, 6000, 6000, 55e3], 7
         )
-        c0_gas_channel = ask_array(
-            "Gas channel concentrations", [0, 0, 1, 0, 0, 0, 0]
+        c0_gas_channel = ask_array_fixed(
+            "Gas channel concentrations", [0, 0, 1, 0, 0, 0, 0], 7
         )
     elif mode == "KOH":
         species = ["O2", "H2", "Hp", "OHm", "Kp", "H2O"]
         print(f"  Species (fixed): {species}")
-        c0 = ask_array("Concentrations", [0, 1.45e-12, 1e-4, 6000, 6000, 55e3])
+        c0 = ask_array_fixed("Concentrations", [0, 1.45e-12, 1e-4, 6000, 6000, 55e3], 6)
     else:
         species = ["O2", "H2", "Hp", "OHm", "H2O"]
         print(f"  Species (fixed): {species}")
-        c0 = ask_array("Concentrations", [0, 1.45e-12, 1e-4, 6000, 55e3])
+        c0 = ask_array_fixed("Concentrations", [0, 1.45e-12, 1e-4, 6000, 55e3], 5)
 
     # --- Reactions ---
     print("\n--- Reactions ---")
@@ -237,12 +250,16 @@ def main():
         X_difflayer        = ask_float("X_difflayer",                   1e-6)
         kappa_anode_diff   = ask_float("kappa_anode (diffusion layer)", 85.0)
         kappa_cathode_diff = ask_float("kappa_cathode (diffusion layer)", 74.0)
-        n_slices           = ask_int(  "n_slices",                      10)
+        while True:
+            n_slices = ask_int("n_slices", 10)
+            if n_slices >= 2:
+                break
+            print("    n_slices must be at least 2.")
 
     # --- Gas Channel (ammonia only) ---
     if is_ammonia:
         print("\n--- Gas Channel ---")
-        mol_vec_frac0 = ask_array("mol_vec_frac0", [0, 0, 1, 0, 0, 0, 0])
+        mol_vec_frac0 = ask_array_fixed("mol_vec_frac0", [0, 0, 1, 0, 0, 0, 0], 7)
         gc_slices     = ask_int(  "slices",         10)
         gc_t          = ask_float("t (residence time, s)", 5.0)
 
