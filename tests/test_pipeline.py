@@ -354,7 +354,7 @@ class TestAmmoniaConti:
 
     def test_parser_name(self):
         m = parse(AMMONIA_DSL)
-        assert m.name == "AAE_0D"
+        assert m.name == "AAE_Conti_Ammonia"
 
     def test_parser_setup(self):
         m = parse(AMMONIA_DSL)

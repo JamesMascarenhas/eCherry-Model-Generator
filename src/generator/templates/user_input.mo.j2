@@ -93,6 +93,9 @@ record {{ user_input_record_name }}
   constant Modelica.Units.SI.Concentration c0[AWEspec.nSpec]          = {{ c0 | moarray }};
   constant Modelica.Units.SI.Pressure       Pi[AWEspec.nSpec]           = {{ pi | moarray }};
   constant Modelica.Units.SI.MolarFlowRate molFlow_vec[AWEspec.nSpec]  = {{ c0 | moarray }};
+{% if is_1d_conti %}
+  constant Modelica.Units.SI.Length X_difflayer = {{ X_difflayer | monum }};
+{% endif %}
 
 end {{ user_input_record_name }};
 {% endif %}

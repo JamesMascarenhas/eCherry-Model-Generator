@@ -128,6 +128,146 @@ equation
 
   annotation(experiment(StopTime = {{ sim_stop_time | monum }}));
 
+{% elif is_1d_conti %}
+  // ── Electrical ──────────────────────────────────────────────────────────────
+  {{ fqn_ground }} Ground;
+  {{ fqn_voltage_source }} Source(
+    Ufixed = Ufixed,
+    GeoRec = {{ UI }}.GeoRec);
+
+  // ── Anode ────────────────────────────────────────────────────────────────────
+  {{ fqn_electrode }} Anode(
+    specRec   = {{ UI }}.AWEspec,
+    GeoRec    = {{ UI }}.GeoRec,
+    CondRec   = {{ UI }}.CondRec,
+    reac      = {{ "{" + UI + "." + anode_reaction + "}" }},
+    CathodeEl = false,
+    P         = 100000,
+    Pi(each displayUnit="bar"),
+    redeclare model ActivationOverpotentialModel = {{ fqn_activation_overpotential }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Cathode ───────────────────────────────────────────────────────────────────
+  {{ fqn_electrode }} Cathode(
+    specRec   = {{ UI }}.AWEspec,
+    GeoRec    = {{ UI }}.GeoRec,
+    CondRec   = {{ UI }}.CondRec,
+    reac      = {{ "{" + UI + "." + cathode_reaction + "}" }},
+    CathodeEl = true,
+    P         = 100000,
+    Pi(each displayUnit="bar"),
+    redeclare model ActivationOverpotentialModel = {{ fqn_activation_overpotential }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Bulk electrolyte compartments (0D, identical to continuous simple) ────────
+  {{ fqn_electrolyte }} Anolyte(
+    specRec     = {{ UI }}.AWEspec,
+    GeoRec      = {{ UI }}.GeoRec,
+    CondRec     = {{ UI }}.CondRec,
+    c0          = {{ UI }}.c0,
+    kappa_const = {{ kappa_anode | monum }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  {{ fqn_electrolyte }} Catholyte(
+    specRec     = {{ UI }}.AWEspec,
+    GeoRec      = {{ UI }}.GeoRec,
+    CondRec     = {{ UI }}.CondRec,
+    c0          = {{ UI }}.c0,
+    kappa_const = {{ kappa_cathode | monum }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Separator ─────────────────────────────────────────────────────────────────
+  {{ fqn_separator }} Diaphragm(
+    specRec = {{ UI }}.AWEspec,
+    GeoRec  = {{ UI }}.GeoRec,
+    CondRec = {{ UI }}.CondRec,
+    kappa   = {{ diaphragm_kappa | monum }},
+    X       = {{ diaphragm_X | monum }},
+    redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
+
+  // ── Anode-side material flows ─────────────────────────────────────────────────
+  {{ fqn_inflow }} AnodeInflow(
+    specRec     = {{ UI }}.AWEspec,
+    molFlow_vec = {{ UI }}.c0 * {{ inflow_scale | monum }});
+
+  {{ fqn_connecting_flow }} Flow_anode(
+    specRec = {{ UI }}.AWEspec);
+
+  {{ fqn_environment }} env_anode(
+    specRec = {{ UI }}.AWEspec);
+
+  // ── Cathode-side material flows ───────────────────────────────────────────────
+  {{ fqn_inflow }} CathodeInflow(
+    specRec     = {{ UI }}.AWEspec,
+    molFlow_vec = {{ UI }}.c0 * {{ inflow_scale | monum }});
+
+  {{ fqn_connecting_flow }} Flow_Cathode(
+    specRec = {{ UI }}.AWEspec);
+
+  {{ fqn_environment }} env_cathode(
+    specRec = {{ UI }}.AWEspec);
+
+  // ── Diffusion layers (1D boundary layer between electrode and bulk) ───────────
+  {{ fqn_diff_layer }} Diff_Anolyte(
+    specRec     = {{ UI }}.AWEspec,
+    GeoRec      = {{ UI }}.GeoRec,
+    CondRec     = {{ UI }}.CondRec,
+    X_difflayer = {{ X_difflayer | monum }},
+    c0          = {{ UI }}.c0,
+    kappa_con   = {{ kappa_anode_diff | monum }});
+    n_slices    = {{ n_slices }});
+
+  {{ fqn_diff_layer }} Diff_Catholyte(
+    specRec     = {{ UI }}.AWEspec,
+    GeoRec      = {{ UI }}.GeoRec,
+    CondRec     = {{ UI }}.CondRec,
+    X_difflayer = {{ X_difflayer | monum }},
+    c0          = {{ UI }}.c0,
+    kappa_con   = {{ kappa_cathode_diff | monum }});
+    n_slices    = {{ n_slices }});
+
+  {{ fqn_conn_layer }} ConnLayer_Anode(
+    specRec = {{ UI }}.AWEspec,
+    GeoRec  = {{ UI }}.GeoRec,
+    dX      = {{ diff_dX | monum }});
+
+  {{ fqn_conn_layer }} ConnLayer_Cathode(
+    specRec = {{ UI }}.AWEspec,
+    GeoRec  = {{ UI }}.GeoRec,
+    dX      = {{ diff_dX | monum }});
+
+equation
+  // Electrical — diffusion layers inserted into the ionic chain
+  connect(Ground.p,         Source.p);
+  connect(Anode.p,          Source.n);
+  connect(Source.p,         Diff_Catholyte.n);
+  connect(Anode.n,          Diff_Anolyte.p);
+  connect(Diff_Anolyte.n,   Anolyte.p);
+  connect(Anolyte.n,        Diaphragm.p);
+  connect(Diaphragm.n,      Catholyte.p);
+  connect(Catholyte.n,      Diff_Catholyte.p);
+  connect(Diff_Catholyte.n, Cathode.p);
+
+  // Anode side — material (diffusion layer → connection layer → bulk)
+  connect(Anode.flowFromElectrolyte,  Diff_Anolyte.leftFlow);
+  connect(Diff_Anolyte.rightFlow,     ConnLayer_Anode.leftFlow);
+  connect(ConnLayer_Anode.rightFlow,  Anolyte.leftFlow);
+  connect(AnodeInflow.convFlow,       Anolyte.inFlow);
+  connect(Anolyte.outFlow,            Flow_anode.convinFlow);
+  connect(Flow_anode.convoutFlow,     env_anode.convFlow);
+  connect(Anolyte.rightFlow,          Diaphragm.anCon);
+
+  // Cathode side — material (bulk → connection layer → diffusion layer)
+  connect(Diaphragm.catCon,            Catholyte.leftFlow);
+  connect(CathodeInflow.convFlow,      Catholyte.inFlow);
+  connect(Catholyte.outFlow,           Flow_Cathode.convinFlow);
+  connect(Flow_Cathode.convoutFlow,    env_cathode.convFlow);
+  connect(Catholyte.rightFlow,         ConnLayer_Cathode.leftFlow);
+  connect(ConnLayer_Cathode.rightFlow, Diff_Catholyte.leftFlow);
+  connect(Diff_Catholyte.rightFlow,    Cathode.flowFromElectrolyte);
+
+  annotation(experiment(StopTime = {{ sim_stop_time | monum }}));
+
 {% else %}
   // Electrical ground and voltage source
   {{ fqn_ground }} Ground;
