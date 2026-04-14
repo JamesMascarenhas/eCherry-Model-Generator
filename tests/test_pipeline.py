@@ -7,6 +7,7 @@ from src.generator.generator import generate
 from src.metamodel.metamodel import (
     ReactorModel, GeometryParams, OperatingConditions,
     Electrode, Separator, Electrolyte, FlowChannel,
+    DiffusionLayerParams
 )
 
 CONTI_SIMPLE_DSL = "dsl/example_conti_simple.reactor"
@@ -14,6 +15,7 @@ CONTI_KOH_DSL    = "dsl/example_conti_koh.reactor"
 BATCH_SIMPLE_DSL = "dsl/example_batch_simple.reactor"
 BATCH_KOH_DSL    = "dsl/example_batch_koh.reactor"
 AMMONIA_DSL = "dsl/example_conti_ammonia.reactor"
+CONTI_1D_DSL = "dsl/example_conti_1d_simple.reactor"
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +95,24 @@ class TestValidator:
     def test_accepts_batch_setup(self):
         model = _minimal_model(setup="batch_0D_alkaline")
         validate(model)  # should not raise
+    
+    def test_rejects_1d_without_diffusion_layer(self):
+        model = _minimal_model(setup="continuous_1D_alkaline")
+        with pytest.raises(ValueError, match="diffusion_layer"):
+            validate(model)
+
+    def test_rejects_1d_with_invalid_n_slices(self):
+        model = _minimal_model(
+            setup="continuous_1D_alkaline",
+            diffusion_layer=DiffusionLayerParams(
+                X_difflayer=1e-6,
+                kappa_anode=85.0,
+                kappa_cathode=74.0,
+                n_slices=1,
+            ),
+        )
+        with pytest.raises(ValueError, match="n_slices must be at least 2"):
+            validate(model)
 
 
 # ===========================================================================
@@ -347,6 +367,11 @@ class TestBatchKOH:
         assert "Diaphragm" not in text
         assert "Electrolyte_Batch_0D_L" in text
 
+
+# ===========================================================================
+# AMMONIA 0D CONTINUOUS
+# ===========================================================================
+
 class TestAmmoniaConti:
     """Parser, transformer, and generator tests for continuous_0D_ammonia."""
 
@@ -506,3 +531,95 @@ class TestAmmoniaConti:
         text = (tmp_path / "UserInput.mo").read_text()
         assert "molFlow_vec" not in text
         assert "Pi[" not in text
+    
+
+# ===========================================================================
+# CONTINUOUS 1D ALKALINE
+# ===========================================================================
+
+    class TestConti1D:
+        """Parser, transformer, and generator tests for continuous_1D_alkaline."""
+
+    def test_parser_populates_1d_setup(self):
+        model = parse(CONTI_1D_DSL)
+        assert model.setup == "continuous_1D_alkaline"
+
+    def test_parser_populates_diffusion_layer(self):
+        model = parse(CONTI_1D_DSL)
+        assert model.diffusion_layer is not None
+        assert model.diffusion_layer.X_difflayer == pytest.approx(1e-6)
+        assert model.diffusion_layer.kappa_anode == pytest.approx(85.0)
+        assert model.diffusion_layer.kappa_cathode == pytest.approx(74.0)
+
+    def test_parser_populates_diffusion_layer_n_slices(self):
+        model = parse(CONTI_1D_DSL)
+        assert model.diffusion_layer is not None
+        assert model.diffusion_layer.n_slices == 10
+
+    def test_transformer_sets_1d_flag(self):
+        ctx = transform(parse(CONTI_1D_DSL))
+        assert ctx["is_1d_conti"] is True
+        assert ctx["is_batch"] is False
+        assert ctx["is_ammonia"] is False
+
+    def test_transformer_within_model(self):
+        ctx = transform(parse(CONTI_1D_DSL))
+        assert ctx["within_model"] == "eCherry_Library.Examples.Continuous"
+
+    def test_transformer_disables_koh_for_1d_simple(self):
+        ctx = transform(parse(CONTI_1D_DSL))
+        assert ctx["use_koh_conductivity"] is False
+
+    def test_transformer_sets_diffusion_layer_context(self):
+        ctx = transform(parse(CONTI_1D_DSL))
+        assert ctx["X_difflayer"] == pytest.approx(1e-6)
+        assert ctx["kappa_anode_diff"] == pytest.approx(85.0)
+        assert ctx["kappa_cathode_diff"] == pytest.approx(74.0)
+        assert ctx["n_slices"] == 10
+        assert "Electrolyte_Batch_1D_L_nLayers" in ctx["fqn_diff_layer"]
+        assert "ConnectionLayer_Diffusive" in ctx["fqn_conn_layer"]
+
+    def test_generator_model_contains_diffusion_layers(self, tmp_path):
+        ctx = transform(parse(CONTI_1D_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "Diff_Anolyte" in text
+        assert "Diff_Catholyte" in text
+        assert "Electrolyte_Batch_1D_L_nLayers" in text
+
+    def test_generator_model_contains_connection_layers(self, tmp_path):
+        ctx = transform(parse(CONTI_1D_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "ConnLayer_Anode" in text
+        assert "ConnLayer_Cathode" in text
+        assert "ConnectionLayer_Diffusive" in text
+
+    def test_generator_model_contains_n_slices(self, tmp_path):
+        ctx = transform(parse(CONTI_1D_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "n_slices" in text
+
+    def test_generator_model_contains_1d_connect_pattern(self, tmp_path):
+        ctx = transform(parse(CONTI_1D_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "Model.mo").read_text(encoding="utf-8")
+        assert "Anode.flowFromElectrolyte" in text
+        assert "Diff_Anolyte.leftFlow" in text
+        assert "ConnLayer_Anode.leftFlow" in text
+        assert "Diff_Catholyte.leftFlow" in text
+        assert "Cathode.flowFromElectrolyte" in text
+
+    def test_generator_userinput_contains_x_difflayer(self, tmp_path):
+        ctx = transform(parse(CONTI_1D_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text(encoding="utf-8")
+        assert "X_difflayer" in text
+
+    def test_generator_userinput_still_uses_awe_spec(self, tmp_path):
+        ctx = transform(parse(CONTI_1D_DSL))
+        generate(ctx, str(tmp_path))
+        text = (tmp_path / "UserInput.mo").read_text(encoding="utf-8")
+        assert "AWEspec" in text
+        assert "AESspec" not in text
