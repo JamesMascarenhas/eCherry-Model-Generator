@@ -293,17 +293,17 @@ Running the pipeline on a single DSL file produces two Modelica files:
 
 | Configuration | DSL lines | Generated lines (Model + UserInput) | Manual reference lines | Reduction |
 |---|---|---|---|---|
-| Continuous AWE simple | 41 | 145 | 213 | 81% |
-| Continuous AWE KOH | 41 | 145 | 180 | 77% |
-| Batch AWE simple | 41 | ~70 | ~180 | ~77% |
-| Batch AWE KOH | 41 | ~70 | novel — no manual reference | ~77% |
-| Continuous AWE 1D simple | 50 | ~133 | available — not yet counted | — |
-| Continuous ammonia | 48 | ~132 | available — not yet counted | — |
+| Continuous AWE simple | 42 | 149 | 213 | 80% |
+| Continuous AWE KOH | 42 | 150 | 180 | 77% |
+| Batch AWE simple | 41 | 101 | 156 | 74% |
+| Batch AWE KOH | 41 | 103 | novel — no reference | — |
+| Continuous ammonia | 48 | 197 | 281 | 83% |
+| Continuous 1D simple | 49 | 183 | 250 | 80% |
 
 ### Abstraction
 
 The key abstraction claim: the user writes ~41–50 lines of DSL and the
-generator produces ~70–145 lines of correct eCherry Modelica. Changing a
+generator produces ~100–200 lines of correct eCherry Modelica. Changing a
 **single line** in the DSL switches the entire generated output:
 
 - `electrolyte_mode: simple` → `electrolyte_mode: KOH` regenerates all
