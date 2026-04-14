@@ -40,6 +40,7 @@ def transform(model: ReactorModel) -> dict:
 
     is_ammonia   = model.setup == "continuous_0D_ammonia"
     is_batch     = model.setup == "batch_0D_alkaline"
+    is_1d_conti  = model.setup == "continuous_1D_alkaline"
     mode         = model.electrolyte.mode
     c0           = model.electrolyte.c0
     inflow_scale = model.conditions.inflow_scale
@@ -107,6 +108,30 @@ def transform(model: ReactorModel) -> dict:
             "fqn_simple_outflow": None,
         }
 
+    # --- 1D diffusion layer context (None for 0D families) ---
+    if is_1d_conti:
+        dl = model.diffusion_layer
+        diff_ctx = {
+            "X_difflayer":       dl.X_difflayer,
+            "kappa_anode_diff":  dl.kappa_anode,
+            "kappa_cathode_diff": dl.kappa_cathode,
+            "diff_dX":           1e-7,   # hardcoded from gold standard
+            "fqn_diff_layer": (
+                f"{_ALIAS}.ElectrochemicalReactor.Electrolytes.Liquid"
+                ".Electrolyte_Batch_1D_L_nLayers"
+            ),
+            "fqn_conn_layer": (
+                f"{_ALIAS}.ElectrochemicalReactor.MaterialDomain"
+                ".ConnectionLayers.ConnectionLayer_Diffusive"
+            ),
+        }
+    else:
+        diff_ctx = {
+            "X_difflayer": None, "kappa_anode_diff": None,
+            "kappa_cathode_diff": None, "diff_dX": None,
+            "fqn_diff_layer": None, "fqn_conn_layer": None,
+        }
+
     return {
         # --- identity ---
         "name":                   model.name,
@@ -123,11 +148,12 @@ def transform(model: ReactorModel) -> dict:
         "import_target": _LIB,
 
         # --- family flags ---
-        "is_ammonia": is_ammonia,
-        "is_batch":   is_batch,
+        "is_ammonia":  is_ammonia,
+        "is_batch":    is_batch,
+        "is_1d_conti": is_1d_conti,
 
         # --- KOH conductivity (AWE only) ---
-        "use_koh_conductivity": (not is_ammonia) and (mode == "KOH"),
+        "use_koh_conductivity": (not is_ammonia) and (not is_1d_conti) and (mode == "KOH"),
         "fqn_koh_conductivity": (
             f"{_LIB}.ElectrochemicalReactor.Properties.ConductivityModels"
             ".ConductivityElectrolyteCalcKOH"
@@ -206,4 +232,7 @@ def transform(model: ReactorModel) -> dict:
 
         # --- ammonia-specific (None for AWE) ---
         **ammonia_ctx,
+
+        # --- 1D diffusion layer (None for 0D families) ---
+        **diff_ctx,
     }
