@@ -114,6 +114,7 @@ def _build_model(data: dict) -> ReactorModel:
         Tenvironment=float(cond.get("Tenvironment", 293.15)),
         p=float(cond.get("p", 1.0)),
         voltage=float(data.get("voltage", -2.5)),
+        inflow_scale=float(cond.get("inflow_scale", 0.005)),
     )
 
     anode_rxn = _resolve_reaction(reac.get("anode", "OERdummy"))

@@ -23,6 +23,7 @@ reactor AWE_Conti_1D_Simple {
     T0:           300
     Tenvironment: 293.15
     p:            1
+    inflow_scale: 0.05
   }
 
   concentrations: [0, 1.45e-12, 1e-4, 6000, 55e3]
