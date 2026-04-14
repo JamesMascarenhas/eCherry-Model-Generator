@@ -90,7 +90,7 @@ model AWE_Conti_1D_Simple
     CondRec     = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.CondRec,
     X_difflayer = 1e-06,
     c0          = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.c0,
-    kappa_con   = 85);
+    kappa_con   = 85,
     n_slices    = 10);
 
   Echery_library.ElectrochemicalReactor.Electrolytes.Liquid.Electrolyte_Batch_1D_L_nLayers Diff_Catholyte(
@@ -99,7 +99,7 @@ model AWE_Conti_1D_Simple
     CondRec     = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.CondRec,
     X_difflayer = 1e-06,
     c0          = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.c0,
-    kappa_con   = 74);
+    kappa_con   = 74,
     n_slices    = 10);
 
   Echery_library.ElectrochemicalReactor.MaterialDomain.ConnectionLayers.ConnectionLayer_Diffusive ConnLayer_Anode(

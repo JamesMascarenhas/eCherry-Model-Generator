@@ -214,7 +214,7 @@ equation
     CondRec     = {{ UI }}.CondRec,
     X_difflayer = {{ X_difflayer | monum }},
     c0          = {{ UI }}.c0,
-    kappa_con   = {{ kappa_anode_diff | monum }});
+    kappa_con   = {{ kappa_anode_diff | monum }},
     n_slices    = {{ n_slices }});
 
   {{ fqn_diff_layer }} Diff_Catholyte(
@@ -223,7 +223,7 @@ equation
     CondRec     = {{ UI }}.CondRec,
     X_difflayer = {{ X_difflayer | monum }},
     c0          = {{ UI }}.c0,
-    kappa_con   = {{ kappa_cathode_diff | monum }});
+    kappa_con   = {{ kappa_cathode_diff | monum }},
     n_slices    = {{ n_slices }});
 
   {{ fqn_conn_layer }} ConnLayer_Anode(
