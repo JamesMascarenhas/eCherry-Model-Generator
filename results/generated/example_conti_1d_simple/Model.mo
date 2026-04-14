@@ -64,7 +64,7 @@ model AWE_Conti_1D_Simple
   // ── Anode-side material flows ─────────────────────────────────────────────────
   Echery_library.ElectrochemicalReactor.MaterialDomain.Flows.Material_Simple_InFlow_Fixed AnodeInflow(
     specRec     = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.AWEspec,
-    molFlow_vec = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.c0 * 0.005);
+    molFlow_vec = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.c0 * 0.05);
 
   Echery_library.ElectrochemicalReactor.MaterialDomain.Flows.Material_Simple_ConnectingFlow Flow_anode(
     specRec = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.AWEspec);
@@ -75,7 +75,7 @@ model AWE_Conti_1D_Simple
   // ── Cathode-side material flows ───────────────────────────────────────────────
   Echery_library.ElectrochemicalReactor.MaterialDomain.Flows.Material_Simple_InFlow_Fixed CathodeInflow(
     specRec     = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.AWEspec,
-    molFlow_vec = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.c0 * 0.005);
+    molFlow_vec = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.c0 * 0.05);
 
   Echery_library.ElectrochemicalReactor.MaterialDomain.Flows.Material_Simple_ConnectingFlow Flow_Cathode(
     specRec = Echery_library.Data.UserInput.AWE_Conti_1D_Simple_UserInput.AWEspec);

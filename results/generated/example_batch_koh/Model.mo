@@ -44,8 +44,8 @@ model AWE_Batch_KOH
     CondRec = Echery_library.Data.UserInput.AWE_Batch_KOH_UserInput.CondRec,
     c0      = Echery_library.Data.UserInput.AWE_Batch_KOH_UserInput.c0,
     X       = 0.01,
-    Y       = 1,
-    Z       = 1,
+    Y       = 0.05,
+    Z       = 0.05,
     redeclare model ConductivityModel = eCherry_Library.ElectrochemicalReactor.Properties.ConductivityModels.ConductivityElectrolyteCalcKOH,
     redeclare model TemperatureModel = Properties.TemperatureModels.TemperatureConstant);
 

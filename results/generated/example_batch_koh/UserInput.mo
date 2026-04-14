@@ -19,8 +19,8 @@ record AWE_Batch_KOH_UserInput
   constant DataRecords.Geometry GeoRec = DataRecords.Geometry(
     X           = 0.01,
     X_membrane  = 0.0005,
-    Y           = 1,
-    Z           = 1,
+    Y           = 0.05,
+    Z           = 0.05,
     cond0       = 1,
     dX          = 1e-06);
 
