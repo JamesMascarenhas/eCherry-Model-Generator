@@ -7,7 +7,7 @@
 
 This project provides a lightweight model-driven pipeline for generating
 [eCherry](https://git.rwth-aachen.de/avt-svt/public/echerry) electrochemical
-reactor models written in [Modelica](https://modelica.org/) — an
+reactor models written in Modelica; an
 equation-based, object-oriented modelling language used in simulation tools
 such as Dymola and OpenModelica. Users describe a reactor configuration in a
 concise domain-specific language (DSL) of 41–50 lines; the pipeline parses
