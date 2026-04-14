@@ -60,22 +60,17 @@ def transform(model: ReactorModel) -> dict:
     if is_ammonia:
         gcp = model.gas_channel_params
         ammonia_ctx = {
-            # geometry record values
-            "geo_X_mem":  model.geometry.X_membrane,   # GeoRecMem.X
-            "geo_X_elec": model.geometry.X_electrode,  # GeoRecElec.X
-            # gas channel params
-            "gas_channel_slices":       gcp.slices,
-            "gas_channel_t":            gcp.t,
+            "geo_X_mem":  model.geometry.X_membrane,
+            "geo_X_elec": model.geometry.X_electrode,
+            "gas_channel_slices":        gcp.slices,
+            "gas_channel_t":             gcp.t,
             "gas_channel_mol_vec_frac0": _fmt_array(gcp.mol_vec_frac0),
             "c0_gas_channel":            _fmt_array(gcp.c0_gas_channel),
-            # species record name (AESspec vs AWEspec)
             "spec_record_name": "AESspec",
-            # extra cathode reaction (NRRdummy)
             "cathode_extra_reaction": (
                 model.cathode.extra_reactions[0]
                 if model.cathode.extra_reactions else None
             ),
-            # FQNs for new component types
             "fqn_gde": (
                 f"{_ALIAS}.ElectrochemicalReactor.Electrodes.Electrode_GasDiffusion"
             ),
@@ -112,10 +107,11 @@ def transform(model: ReactorModel) -> dict:
     if is_1d_conti:
         dl = model.diffusion_layer
         diff_ctx = {
-            "X_difflayer":       dl.X_difflayer,
-            "kappa_anode_diff":  dl.kappa_anode,
+            "X_difflayer":        dl.X_difflayer,
+            "kappa_anode_diff":   dl.kappa_anode,
             "kappa_cathode_diff": dl.kappa_cathode,
-            "diff_dX":           1e-7,   # hardcoded from gold standard
+            "n_slices":           dl.n_slices,
+            "diff_dX":            1e-7,   # hardcoded from gold standard
             "fqn_diff_layer": (
                 f"{_ALIAS}.ElectrochemicalReactor.Electrolytes.Liquid"
                 ".Electrolyte_Batch_1D_L_nLayers"
@@ -128,7 +124,8 @@ def transform(model: ReactorModel) -> dict:
     else:
         diff_ctx = {
             "X_difflayer": None, "kappa_anode_diff": None,
-            "kappa_cathode_diff": None, "diff_dX": None,
+            "kappa_cathode_diff": None, "n_slices": None,
+            "diff_dX": None,
             "fqn_diff_layer": None, "fqn_conn_layer": None,
         }
 
@@ -152,7 +149,7 @@ def transform(model: ReactorModel) -> dict:
         "is_batch":    is_batch,
         "is_1d_conti": is_1d_conti,
 
-        # --- KOH conductivity (AWE only) ---
+        # --- KOH conductivity (AWE 0D only) ---
         "use_koh_conductivity": (not is_ammonia) and (not is_1d_conti) and (mode == "KOH"),
         "fqn_koh_conductivity": (
             f"{_LIB}.ElectrochemicalReactor.Properties.ConductivityModels"
