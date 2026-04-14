@@ -105,9 +105,9 @@ equation
   connect(Flow_Cathode.convoutFlow,  env_cathode.convFlow);
   // Cathode side — electrode coupling and separator
   connect(Catholyte.rightFlow, Cathode.flowFromElectrolyte);
-  connect(Cathode.n,          Catholyte.p);
+  connect(Cathode.p,          Catholyte.n);
   connect(Catholyte.leftFlow, Diaphragm.catCon);
-  connect(Catholyte.n,        Diaphragm.n);
+  connect(Catholyte.p,        Diaphragm.n);
 
   annotation(experiment(StopTime = 50));
 

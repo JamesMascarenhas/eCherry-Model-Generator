@@ -420,15 +420,9 @@ equation
   connect(Flow_Cathode.convoutFlow,  env_cathode.convFlow);
   // Cathode side — electrode coupling and separator
   connect(Catholyte.rightFlow, Cathode.flowFromElectrolyte);
-{% if use_koh_conductivity %}
   connect(Cathode.p,          Catholyte.n);
   connect(Catholyte.leftFlow, Diaphragm.catCon);
   connect(Catholyte.p,        Diaphragm.n);
-{% else %}
-  connect(Cathode.n,          Catholyte.p);
-  connect(Catholyte.leftFlow, Diaphragm.catCon);
-  connect(Catholyte.n,        Diaphragm.n);
-{% endif %}
 {% endif %}
 
   annotation(experiment(StopTime = {{ sim_stop_time | monum }}));
