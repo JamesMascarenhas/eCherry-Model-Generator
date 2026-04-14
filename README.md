@@ -1,4 +1,4 @@
-<table>
+<table border="0">
 <tr>
 <td><img src="docs/eCherryLogo.png" alt="eCherry Logo" width="60"/></td>
 <td><h1>eCherry DSL Generator</h1></td>
