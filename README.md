@@ -1,4 +1,4 @@
-![eCherry Logo](docs/eCherryLogo.png)
+<img src="docs/eCherryLogo.png" alt="eCherry Logo" width="60"/>
 # eCherry DSL Generator
 
 This project provides a lightweight model-driven pipeline for generating
