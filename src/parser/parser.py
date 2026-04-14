@@ -7,6 +7,7 @@ from src.metamodel.metamodel import (
     Electrolyte,
     FlowChannel,
     GasChannelParams,
+    DiffusionLayerParams,
 )
 
 _REACTION_MAP = {
@@ -171,6 +172,18 @@ def _build_model(data: dict) -> ReactorModel:
     else:
         gas_channel_params = None
 
+    # Diffusion layer block (1D families only)
+    dl_block = data.get("diffusion_layer", {})
+    if dl_block:
+        diffusion_layer = DiffusionLayerParams(
+            X_difflayer=float(dl_block.get("X_difflayer", 1e-6)),
+            kappa_anode=float(dl_block.get("kappa_anode", 85.0)),
+            kappa_cathode=float(dl_block.get("kappa_cathode", 74.0)),
+            n_slices=int(dl_block.get("n_slices", 10)),
+        )
+    else:
+        diffusion_layer = None
+
     return ReactorModel(
         name=data["name"],
         geometry=geometry,
@@ -183,6 +196,7 @@ def _build_model(data: dict) -> ReactorModel:
         sim_stop_time=float(sim.get("stop_time", 50.0)),
         setup=str(data.get("setup", "continuous_0D_alkaline")),
         gas_channel_params=gas_channel_params,
+        diffusion_layer=diffusion_layer,
     )
 
 

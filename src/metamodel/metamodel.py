@@ -57,6 +57,15 @@ class GasChannelParams:
 
 
 @dataclass
+class DiffusionLayerParams:
+    """1D diffusion boundary layer — None for all 0D families."""
+    X_difflayer: float = 1e-6    # total thickness of diffusion layer
+    kappa_anode: float = 85.0    # conductivity of anode diffusion layer
+    kappa_cathode: float = 74.0  # conductivity of cathode diffusion layer
+    n_slices: int = 10           # discretization slices (default in eCherry component)
+
+
+@dataclass
 class ReactorModel:
     name: str
     geometry: GeometryParams
@@ -69,3 +78,4 @@ class ReactorModel:
     sim_stop_time: float = 50.0
     setup: str = "continuous_0D_alkaline"
     gas_channel_params: GasChannelParams | None = None  # ammonia only
+    diffusion_layer: DiffusionLayerParams | None = None  # 1D families only
