@@ -1,7 +1,7 @@
-<table border="0">
+<table style="border: none; border-collapse: collapse;">
 <tr>
-<td><img src="docs/eCherryLogo.png" alt="eCherry Logo" width="60"/></td>
-<td><h1>eCherry DSL Generator</h1></td>
+<td style="border: none;"><img src="docs/eCherryLogo.png" alt="eCherry Logo" width="60"/></td>
+<td style="border: none;"><h1>eCherry DSL Generator</h1></td>
 </tr>
 </table>
 
