@@ -1,6 +1,9 @@
-<img src="docs/eCherryLogo.png" alt="eCherry Logo" width="60"/>
-
-# eCherry DSL Generator
+<table>
+<tr>
+<td><img src="docs/eCherryLogo.png" alt="eCherry Logo" width="60"/></td>
+<td><h1>eCherry DSL Generator</h1></td>
+</tr>
+</table>
 
 This project provides a lightweight model-driven pipeline for generating
 [eCherry](https://git.rwth-aachen.de/avt-svt/public/echerry) electrochemical
