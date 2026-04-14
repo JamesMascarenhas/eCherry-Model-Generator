@@ -7,11 +7,11 @@ equation-based, object-oriented modelling language used in simulation tools
 such as Dymola and OpenModelica. Users describe a reactor configuration in a
 concise domain-specific language (DSL) of 41–50 lines; the pipeline parses
 that description, validates it, transforms it into an intermediate
-representation, and generates a fully-wired, simulation-ready Modelica
+representation, and generates a fully-wired eCherry-compatible Modelica
 artefact of 100–200 lines that conforms to the eCherry component API. The
-project covers alkaline water electrolysis (AWE) in 0D and 1D variants and
-alkaline ammonia electrolysis (AAE), implemented entirely in Python without
-heavy modelling toolchains.
+project is implemented in Python as a lightweight front end for generating
+eCherry-compatible Modelica artefacts, covering alkaline water electrolysis
+(AWE) in 0D and 1D variants and alkaline ammonia electrolysis (AAE).
 
 ---
 
@@ -21,19 +21,19 @@ heavy modelling toolchains.
 .reactor file
      │
      ▼
-  parser          Reads a .reactor DSL file line-by-line; returns an intermediate dict.
+  parser              Reads a .reactor DSL file line-by-line; returns an intermediate dict.
      │
      ▼
- metamodel        Populates Python dataclasses (ReactorModel, GeometryParams, …).
+model construction    Maps parsed data into Python dataclasses (ReactorModel, GeometryParams, …).
      │
      ▼
- validator        Runs eight semantic checks; fails fast with a clear error message.
+ validator            Runs nine semantic checks; fails fast with a clear error message.
      │
      ▼
-transformer       Maps ReactorModel → GeneratorContext dict; resolves eCherry FQNs.
+transformer           Maps ReactorModel → GeneratorContext dict; resolves eCherry FQNs.
      │
      ▼
- generator        Renders two Jinja2 templates against the context dict.
+ generator            Renders two Jinja2 templates against the context dict.
      │
      ▼
 Model.mo + UserInput.mo
@@ -72,10 +72,12 @@ source .venv/bin/activate        # macOS / Linux
 pip install -r requirements.txt
 ```
 
-### Option A — Interactive wizard
+### Option A — Interactive wizard (recommended)
 
 The wizard guides you through every parameter with defaults pre-filled for
-each reactor family:
+each reactor family. The quickest way to verify the project is to run the
+wizard, generate a DSL file, and inspect the resulting `Model.mo` and
+`UserInput.mo` files in `results/generated/`.
 
 ```bash
 python reactor_builder.py
@@ -83,7 +85,7 @@ python reactor_builder.py
 
 The wizard validates inputs (negative voltage enforced, array lengths
 checked, filename collision protection) and automatically runs the generator
-when you finish. Generated files are written to `results/generated/<name>/`.
+when you finish.
 
 ### Option B — Run a DSL file directly
 
@@ -115,7 +117,7 @@ eCherry_Model_Generator/
 ├── src/
 │   ├── parser/parser.py          # Hand-written line-by-line parser → intermediate dict
 │   ├── metamodel/metamodel.py    # Python dataclasses (ReactorModel and component types)
-│   ├── validator.py              # Eight semantic checks; raises ValueError on failure
+│   ├── validator.py              # Nine semantic checks; raises ValueError on failure
 │   ├── transform/transformer.py  # ReactorModel → GeneratorContext dict with resolved FQNs
 │   └── generator/
 │       ├── generator.py          # Renders Jinja2 templates and writes output files
@@ -136,7 +138,7 @@ eCherry_Model_Generator/
 │   └── manual/                   # Reference .mo files copied from the eCherry library
 │
 └── tests/
-    └── test_pipeline.py          # 84 pytest tests organised into 6 classes
+    └── test_pipeline.py          # 84 pytest tests covering validation and all six supported families
 ```
 
 ---
@@ -146,7 +148,7 @@ eCherry_Model_Generator/
 Every reactor is described in a `.reactor` file. Below is the complete
 `example_conti_simple.reactor` — the baseline configuration:
 
-```
+```text
 reactor AWE_Conti_Simple {
   setup: continuous_0D_alkaline
   electrolyte_mode: simple
@@ -213,7 +215,7 @@ reactor AWE_Conti_Simple {
 
 **`diffusion_layer { ... }`** — required for `continuous_1D_alkaline`, omit for all 0D families:
 
-```
+```text
   diffusion_layer {
     X_difflayer:   1e-6
     kappa_anode:   85
@@ -224,7 +226,7 @@ reactor AWE_Conti_Simple {
 
 **`gas_channel { ... }`** — required for `continuous_0D_ammonia`, omit for all other families:
 
-```
+```text
   gas_channel {
     mol_vec_frac0: [0, 0, 1, 0, 0, 0, 0]
     slices: 10
@@ -234,12 +236,25 @@ reactor AWE_Conti_Simple {
 
 **Block-form `concentrations`** — used only for `continuous_0D_ammonia`; all other families use the flat list syntax:
 
-```
+```text
   concentrations {
     electrolyte: [0, 1.45e-12, 0, 0, 6000, 6000, 55e3]
     gas_channel: [0, 0, 1, 0, 0, 0, 0]
   }
 ```
+
+**`inflow_scale` in `conditions`** — for `continuous_1D_alkaline` only, set explicitly:
+
+```text
+  conditions {
+    T0:           300
+    Tenvironment: 293.15
+    p:            1
+    inflow_scale: 0.05
+  }
+```
+
+All 0D families use the default of `0.005` and do not need to specify this.
 
 ---
 
@@ -257,14 +272,18 @@ Running the pipeline on a single DSL file produces two Modelica files:
 - `equation` section with `connect()` statements wiring all components
 - `annotation` with simulation stop time
 
-**`UserInput.mo`** — the data record. Contains:
-- Species record (`AWEspec` or `AESspec`) listing eCherry species FQNs
+**`UserInput.mo`** — the data record. Depending on the family, it contains:
+- Species record (`AWEspec` or `AESspec` for ammonia)
 - Reaction constants
-- Geometry record (`GeoRec`)
+- Geometry record(s) — `GeoRec` for all families; additionally `GeoRecMem`
+  and `GeoRecElec` for ammonia
 - Conditions record (`CondRec`)
-- Initial concentration array `c0`
-- Pressure array `Pi` and molar flow rate array `molFlow_vec`
+- Initial concentration data (`c0` for AWE; `c0_Electrolyte` and
+  `c0_GasChannel` for ammonia)
+- Pressure array `Pi` and molar flow rate array `molFlow_vec` (AWE families
+  only)
 - `X_difflayer` constant (1D only)
+- Gas-channel parameters `mol_vec_frac0`, `slices`, and `t` (ammonia only)
 
 ---
 
@@ -277,17 +296,14 @@ Running the pipeline on a single DSL file produces two Modelica files:
 | Continuous AWE simple | 41 | 145 | 213 | 81% |
 | Continuous AWE KOH | 41 | 145 | 180 | 77% |
 | Batch AWE simple | 41 | ~70 | ~180 | ~77% |
-| Batch AWE KOH | 41 | ~70 | n/a (novel) | ~77% |
-| Continuous AWE 1D simple | 49 | 183 | — | — |
-| Continuous ammonia | 48 | 197 | — | — |
-
-*The four AWE rows use figures from the project evaluation report. Ammonia
-and 1D figures are measured from the generated files in this repository.*
+| Batch AWE KOH | 41 | ~70 | novel — no manual reference | ~77% |
+| Continuous AWE 1D simple | 50 | ~133 | available — not yet counted | — |
+| Continuous ammonia | 48 | ~132 | available — not yet counted | — |
 
 ### Abstraction
 
-The key abstraction claim: the user writes ~41 lines of DSL and the
-generator produces ~145 lines of correct eCherry Modelica. Changing a
+The key abstraction claim: the user writes ~41–50 lines of DSL and the
+generator produces ~70–145 lines of correct eCherry Modelica. Changing a
 **single line** in the DSL switches the entire generated output:
 
 - `electrolyte_mode: simple` → `electrolyte_mode: KOH` regenerates all
@@ -296,13 +312,14 @@ generator produces ~145 lines of correct eCherry Modelica. Changing a
   the separator, both electrolyte compartments, and all flow components,
   replacing them with a single shared electrolyte.
 
-The `setup` and `electrolyte_mode` flags are orthogonal — adding a new mode
-does not require rewriting existing branches.
+The `setup` and `electrolyte_mode` flags are treated largely orthogonally in
+the current design, so extending one dimension generally does not require
+rewriting the entire pipeline.
 
 ### Tests
 
-84 tests pass. No external Modelica runtime is required — all tests operate
-on generated text output.
+84 tests pass across 7 test classes. No external Modelica runtime is
+required — all tests operate on generated text output.
 
 ---
 
@@ -314,7 +331,7 @@ Development**.
 | MDD concept | This project |
 |---|---|
 | **DSL** | An external textual language (`.reactor` files) with its own syntax, parsed by a hand-written line-by-line parser in `src/parser/parser.py` |
-| **Metamodel** | Python dataclasses in `src/metamodel/metamodel.py` (`ReactorModel`, `GeometryParams`, `Electrode`, etc.) representing the M1 model level; the parser and validator encode the implicit M2 grammar and constraints |
+| **Metamodel** | Python dataclasses in `src/metamodel/metamodel.py` (`ReactorModel`, `GeometryParams`, `Electrode`, etc.) define the internal domain model used by the parser, validator, transformer, and generator |
 | **Model transformation** | `src/transform/transformer.py` performs a model-to-model transformation: `ReactorModel` (domain model) → `GeneratorContext` dict (Modelica-oriented model) with all eCherry fully-qualified names resolved |
 | **Code generation** | `src/generator/generator.py` renders two Jinja2 templates against the `GeneratorContext` dict, producing model-to-text output targeting the eCherry Modelica component API |
 
@@ -334,14 +351,15 @@ python -m pytest tests/ -v
 | `TestContiKOH` | Parser, transformer, and generator for `continuous_0D_alkaline` KOH |
 | `TestBatchSimple` | Parser, transformer, and generator for `batch_0D_alkaline` simple |
 | `TestBatchKOH` | Parser, transformer, and generator for `batch_0D_alkaline` KOH |
-| `TestAmmoniaConti` | Parser, transformer, and generator for `continuous_0D_ammonia` and `continuous_1D_alkaline` |
+| `TestAmmoniaConti` | Parser, transformer, and generator for `continuous_0D_ammonia` |
+| `TestConti1D` | Parser, transformer, and generator for `continuous_1D_alkaline` |
 
 ---
 
 ## Limitations and Future Work
 
-- **No simulation automation.** Generated `.mo` files must be loaded
-  manually into a Modelica tool (e.g. Dymola or OpenModelica). Integration
+- **No simulation automation.** Generated `.mo` files must currently be
+  loaded manually into a compatible Modelica tool such as Dymola. Integration
   with buildingspy or a Modelica test runner is not included.
 - **`X_difflayer` is a literal constant** in the generated `Model.mo`
   rather than a reference through the `UserInput` record, which limits
