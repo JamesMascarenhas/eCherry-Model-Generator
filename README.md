@@ -1,3 +1,4 @@
+![eCherry Logo](docs/eCherryLogo.png)
 # eCherry DSL Generator
 
 This project provides a lightweight model-driven pipeline for generating
@@ -12,6 +13,8 @@ artefact of 100–200 lines that conforms to the eCherry component API. The
 project is implemented in Python as a lightweight front end for generating
 eCherry-compatible Modelica artefacts, covering alkaline water electrolysis
 (AWE) in 0D and 1D variants and alkaline ammonia electrolysis (AAE).
+
+![eCherry Library Structure](docs/eCherryOverview.png)
 
 ---
 
