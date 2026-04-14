@@ -1,7 +1,7 @@
 <table style="border: none; border-collapse: collapse;">
 <tr>
 <td style="border: none;"><img src="docs/eCherryLogo.png" alt="eCherry Logo" width="60"/></td>
-<td style="border: none;"><h1>eCherry DSL Generator</h1></td>
+<td style="border: none;"><h1>eCherry Model Generator</h1></td>
 </tr>
 </table>
 
@@ -330,10 +330,7 @@ required — all tests operate on generated text output.
 
 ---
 
-## Academic Context — CISC 844
-
-This project is a course artefact for **CISC 844: Model-Driven Software
-Development**.
+## Academic Context
 
 | MDD concept | This project |
 |---|---|
